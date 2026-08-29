@@ -3,17 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f46e5">
   <title>POS System - Smart Store</title>
-  <!-- Tailwind CSS, Chart.js & FontAwesome CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Google API SDK Client -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <style>
     body { font-family: 'Inter', sans-serif; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* CSS dành riêng cho việc IN HÓA ĐƠN (Khổ giấy 80mm) */
     @media print {
       body * { visibility: hidden; }
       #print-area, #print-area * { visibility: visible; }
@@ -28,9 +32,24 @@
         font-family: monospace;
       }
     }
+
+    /* Animation cho Toast Popup */
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+    .toast-show { animation: slideIn 0.3s ease-out forwards; }
+    .toast-hide { animation: slideOut 0.3s ease-in forwards; }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800">
+
+<!-- TOAST NOTIFICATION CONTAINER (Góc trên bên phải, không khóa màn hình) -->
+<div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50">
@@ -238,11 +257,107 @@
       </div>
     </section>
 
-    <!-- TAB 6: CÀI ĐẶT & SAO LƯU (SETTINGS) -->
+    <!-- TAB 6: CÀI ĐẶT & SAO LƯU -->
     <section id="tab-settings" class="tab-content">
       <h2 class="text-2xl font-bold mb-6">Cài Đặt & Sao Lưu Dữ Liệu</h2>
 
-      <div class="grid grid-cols-2 gap-6">
+      <!-- GOOGLE DRIVE BACKUP CONFIG CARD -->
+      <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-6">
+        <div class="flex items-center justify-between mb-4 border-b pb-4">
+          <div class="flex items-center space-x-3 text-indigo-600">
+            <i class="fa-brands fa-google-drive text-3xl"></i>
+            <div>
+              <h3 class="text-lg font-bold text-gray-800">Sao Lưu Tự Động Google Drive</h3>
+              <p class="text-xs text-gray-500">Đảm bảo dữ liệu bán hàng, hóa đơn không bao giờ bị mất</p>
+            </div>
+          </div>
+          <!-- Toggle Bật/Tắt -->
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-semibold text-gray-600">Bật Sao Lưu:</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="drive-backup-toggle" onchange="toggleBackupSetting(this.checked)" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <!-- Liên kết tài khoản -->
+          <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div class="flex items-center space-x-3">
+              <i class="fa-solid fa-user-check text-gray-400 text-xl" id="drive-user-icon"></i>
+              <div>
+                <p class="text-sm font-semibold" id="drive-account-status">Chưa liên kết tài khoản Google Drive</p>
+                <p class="text-xs text-gray-400" id="drive-account-email">Vui lòng đăng nhập để bắt đầu sao lưu</p>
+              </div>
+            </div>
+            <button id="btn-link-drive" onclick="connectGoogleDrive()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 shadow-sm">
+              <i class="fa-brands fa-google text-red-500"></i>
+              <span>Liên Kết Drive</span>
+            </button>
+          </div>
+
+          <!-- Tùy chọn chế độ sao lưu -->
+          <div id="drive-options-area" class="opacity-50 pointer-events-none transition-all">
+            <label class="block text-xs font-bold text-gray-600 uppercase mb-2">Chế Độ Sao Lưu Tự Động:</label>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <label class="flex items-center p-3 border rounded-xl cursor-pointer hover:bg-indigo-50/50 transition">
+                <input type="radio" name="backup-mode" value="event" onchange="updateBackupMode('event')" checked class="text-indigo-600 focus:ring-indigo-500">
+                <div class="ml-3">
+                  <span class="block text-sm font-bold text-gray-800">Theo Thao Tác</span>
+                  <span class="block text-xs text-gray-500">Sao lưu ngay khi Bán hàng, Thêm HD, Thêm Khách...</span>
+                </div>
+              </label>
+              <label class="flex items-center p-3 border rounded-xl cursor-pointer hover:bg-indigo-50/50 transition">
+                <input type="radio" name="backup-mode" value="timer" onchange="updateBackupMode('timer')" class="text-indigo-600 focus:ring-indigo-500">
+                <div class="ml-3">
+                  <span class="block text-sm font-bold text-gray-800">Định Kỳ 1 Phút</span>
+                  <span class="block text-xs text-gray-500">Tự động sao lưu mỗi 1 phút một lần</span>
+                </div>
+              </label>
+            </div>
+
+            <button onclick="triggerManualBackup()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center space-x-2 shadow-sm">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <span>Bấm Sao Lưu Thủ Công Ngay</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6 mb-6">
+        <!-- Store Info Settings Card -->
+        <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm col-span-2">
+          <div class="flex items-center space-x-3 mb-4 text-indigo-600">
+            <i class="fa-solid fa-store text-2xl"></i>
+            <h3 class="text-lg font-bold text-gray-800">Thông Tin Cửa Hàng (In Hóa Đơn)</h3>
+          </div>
+          <form onsubmit="saveStoreInfo(event)" class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Tên Cửa Hàng</label>
+              <input type="text" id="store-name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Số Điện Thoại</label>
+              <input type="text" id="store-phone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div class="col-span-2">
+              <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Địa Chỉ</label>
+              <input type="text" id="store-address" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div class="col-span-2">
+              <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Lời Cảm Ơn (Cuối Hóa Đơn)</label>
+              <input type="text" id="store-footer" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div class="col-span-2 text-right mt-2">
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2.5 rounded-xl transition inline-flex items-center space-x-2">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>Lưu Thông Tin Cửa Hàng</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
         <!-- Export JSON Card -->
         <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
           <div class="flex items-center space-x-3 mb-4 text-indigo-600">
@@ -359,11 +474,12 @@
   </div>
 </div>
 
-<!-- KHU VỰC CHỨA KHUNG IN HÓA ĐƠN -->
 <div id="print-area"></div>
 
-<!-- SCRIPT XỬ LÝ JS -->
 <script>
+  // --- CLIENT ID DÙNG ĐỂ KẾT NỐI DRIVE (Thay Client ID của ông vào đây) ---
+  const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+
   let state = {
     products: JSON.parse(localStorage.getItem('pos_products')) || [
       { id: 1, name: "Cà Phê Muối", price: 29000, stock: 50 },
@@ -376,20 +492,248 @@
       { id: 2, name: "Trần Thị B", phone: "0987654321", spent: 0 }
     ],
     invoices: JSON.parse(localStorage.getItem('pos_invoices')) || [],
+    storeInfo: JSON.parse(localStorage.getItem('pos_store_info')) || {
+      name: "SMART POS STORE",
+      phone: "0909 123 456",
+      address: "TP. Hồ Chí Minh",
+      footer: "Cảm ơn quý khách & hẹn gặp lại!"
+    },
     cart: []
+  };
+
+  let backupConfig = JSON.parse(localStorage.getItem('pos_backup_config')) || {
+    enabled: false,
+    mode: 'event', // 'event' hoặc 'timer'
+    token: null,
+    userEmail: null
   };
 
   let currentEditInvoiceId = null;
   let chartInstance = null;
+  let tokenClient = null;
+  let timerInterval = null;
 
   const formatVND = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-  function saveState() {
+  function saveState(isUserAction = false) {
     localStorage.setItem('pos_products', JSON.stringify(state.products));
     localStorage.setItem('pos_customers', JSON.stringify(state.customers));
     localStorage.setItem('pos_invoices', JSON.stringify(state.invoices));
+    localStorage.setItem('pos_store_info', JSON.stringify(state.storeInfo));
+
+    // Nếu người dùng thực hiện thao tác dữ liệu và đang bật chế độ sao lưu theo sự kiện
+    if (isUserAction && backupConfig.enabled && backupConfig.mode === 'event') {
+      performDriveBackup();
+    }
   }
 
+  // --- POPUP TOAST THÔNG BÁO TỰ ĐỘNG KHÔNG KHÓA MÀN HÌNH ---
+  function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-slate-900 border-indigo-500' : 'bg-red-900 border-red-500';
+
+    toast.className = `toast-show pointer-events-auto flex items-center space-x-3 text-white px-4 py-3 rounded-xl shadow-xl border-l-4 ${bgColor} min-w-[280px]`;
+    toast.innerHTML = `
+      <i class="fa-solid ${type === 'success' ? 'fa-cloud-arrow-up text-indigo-400' : 'fa-triangle-exclamation text-red-400'} text-lg"></i>
+      <div class="text-xs font-medium">${message}</div>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.classList.remove('toast-show');
+      toast.classList.add('toast-hide');
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  // --- GOOGLE DRIVE INTEGRATION ---
+  function initGoogleDriveSDK() {
+    if (typeof google === 'undefined' || !google.accounts) return;
+
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email',
+      callback: async (response) => {
+        if (response.error) return alert("Lỗi xác thực Google: " + response.error);
+
+        backupConfig.token = response.access_token;
+
+        // Lấy thông tin email người dùng
+        try {
+          const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${response.access_token}` }
+          });
+          const info = await res.json();
+          backupConfig.userEmail = info.email;
+        } catch (e) {
+          backupConfig.userEmail = "Đã kết nối";
+        }
+
+        saveBackupConfig();
+        updateDriveUI();
+        showToast(`Đã kết nối Drive: ${backupConfig.userEmail}`);
+      },
+    });
+  }
+
+  function saveBackupConfig() {
+    localStorage.setItem('pos_backup_config', JSON.stringify(backupConfig));
+  }
+
+  function connectGoogleDrive() {
+    if (!tokenClient) initGoogleDriveSDK();
+    if (tokenClient) {
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+      alert("Chưa tải xong Google SDK hoặc Client ID chưa đúng!");
+    }
+  }
+
+  function toggleBackupSetting(enabled) {
+    if (enabled && !backupConfig.token) {
+      alert("Vui lòng Bấm 'Liên Kết Drive' với tài khoản Google của ông trước khi bật tính năng này!");
+      document.getElementById('drive-backup-toggle').checked = false;
+      return;
+    }
+    backupConfig.enabled = enabled;
+    saveBackupConfig();
+    updateDriveUI();
+
+    if (enabled) {
+      showToast("Đã BẬT Sao Lưu Tự Động lên Google Drive!");
+      setupTimerBackup();
+    } else {
+      showToast("Đã TẮT Sao Lưu Tự Động!");
+      if (timerInterval) clearInterval(timerInterval);
+    }
+  }
+
+  function updateBackupMode(mode) {
+    backupConfig.mode = mode;
+    saveBackupConfig();
+    setupTimerBackup();
+    showToast(`Đã chuyển chế độ sao lưu: ${mode === 'event' ? 'Theo thao tác' : '1 Phút/Lần'}`);
+  }
+
+  function setupTimerBackup() {
+    if (timerInterval) clearInterval(timerInterval);
+    if (backupConfig.enabled && backupConfig.mode === 'timer') {
+      // Thiết lập đếm giờ 1 phút (60000 ms)
+      timerInterval = setInterval(() => {
+        performDriveBackup();
+      }, 60000);
+    }
+  }
+
+  function updateDriveUI() {
+    const isLinked = !!backupConfig.token;
+    const statusText = document.getElementById('drive-account-status');
+    const emailText = document.getElementById('drive-account-email');
+    const userIcon = document.getElementById('drive-user-icon');
+    const optionsArea = document.getElementById('drive-options-area');
+    const toggle = document.getElementById('drive-backup-toggle');
+
+    toggle.checked = backupConfig.enabled;
+
+    if (isLinked) {
+      statusText.innerText = "Đã liên kết Google Drive";
+      statusText.className = "text-sm font-semibold text-emerald-600";
+      emailText.innerText = backupConfig.userEmail || "TK đã xác thực";
+      userIcon.className = "fa-solid fa-circle-check text-emerald-500 text-xl";
+    } else {
+      statusText.innerText = "Chưa liên kết tài khoản Google Drive";
+      statusText.className = "text-sm font-semibold text-gray-700";
+      emailText.innerText = "Vui lòng đăng nhập để bắt đầu sao lưu";
+      userIcon.className = "fa-solid fa-user-check text-gray-400 text-xl";
+    }
+
+    if (backupConfig.enabled && isLinked) {
+      optionsArea.classList.remove('opacity-50', 'pointer-events-none');
+    } else {
+      optionsArea.classList.add('opacity-50', 'pointer-events-none');
+    }
+
+    const radios = document.getElementsByName('backup-mode');
+    radios.forEach(r => r.checked = (r.value === backupConfig.mode));
+  }
+
+  // API ĐẨY FILE LÊN GOOGLE DRIVE
+  async function performDriveBackup() {
+    if (!backupConfig.token) return;
+
+    const dataToBackup = {
+      products: state.products,
+      customers: state.customers,
+      invoices: state.invoices,
+      storeInfo: state.storeInfo,
+      exportedAt: new Date().toISOString()
+    };
+
+    const fileName = `POS_Backup_Data.json`;
+    const blob = new Blob([JSON.stringify(dataToBackup, null, 2)], { type: 'application/json' });
+
+    try {
+      // Tim xem file backup cũ đã tồn tại chưa
+      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${fileName}' and trashed=false`, {
+        headers: { Authorization: `Bearer ${backupConfig.token}` }
+      });
+      const searchData = await searchRes.json();
+
+      let fileId = null;
+      if (searchData.files && searchData.files.length > 0) {
+        fileId = searchData.files[0].id;
+      }
+
+      let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+      let method = 'POST';
+
+      if (fileId) {
+        url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`;
+        method = 'PATCH';
+      }
+
+      const metadata = { name: fileName, mimeType: 'application/json' };
+      const formData = new FormData();
+      formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      formData.append('file', blob);
+
+      const uploadRes = await fetch(url, {
+        method: method,
+        headers: { Authorization: `Bearer ${backupConfig.token}` },
+        body: formData
+      });
+
+      if (uploadRes.status === 401) {
+        // Token hết hạn -> Báo người dùng liên kết lại
+        showToast("Phiên Google Drive đã hết hạn, vui lòng kết nối lại!", "error");
+        backupConfig.enabled = false;
+        saveBackupConfig();
+        updateDriveUI();
+        return;
+      }
+
+      if (uploadRes.ok) {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('vi-VN');
+        const dateStr = now.toLocaleDateString('vi-VN');
+        showToast(`Đã sao lưu lúc ${timeStr} - ${dateStr}`);
+      } else {
+        showToast("Sao lưu Drive thất bại!", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Lỗi kết nối khi sao lưu!", "error");
+    }
+  }
+
+  function triggerManualBackup() {
+    if (!backupConfig.token) return alert("Vui lòng liên kết tài khoản Drive trước!");
+    performDriveBackup();
+  }
+
+  // --- APP INITIALIZATION ---
   function handleLogin(e) {
     e.preventDefault();
     const u = document.getElementById('username').value;
@@ -424,12 +768,39 @@
     if(tabId === 'products') renderProductTable();
     if(tabId === 'customers') renderCustomerTable();
     if(tabId === 'invoices') renderInvoiceTable();
+    if(tabId === 'settings') {
+      loadStoreInfoToForm();
+      updateDriveUI();
+    }
   }
 
   function initApp() {
     renderPosProducts();
     renderCart();
     populateCustomerSelect();
+    loadStoreInfoToForm();
+    setTimeout(initGoogleDriveSDK, 1000);
+    setupTimerBackup();
+  }
+
+  // --- THÔNG TIN CỬA HÀNG ---
+  function loadStoreInfoToForm() {
+    document.getElementById('store-name').value = state.storeInfo.name;
+    document.getElementById('store-phone').value = state.storeInfo.phone;
+    document.getElementById('store-address').value = state.storeInfo.address;
+    document.getElementById('store-footer').value = state.storeInfo.footer;
+  }
+
+  function saveStoreInfo(e) {
+    e.preventDefault();
+    state.storeInfo = {
+      name: document.getElementById('store-name').value,
+      phone: document.getElementById('store-phone').value,
+      address: document.getElementById('store-address').value,
+      footer: document.getElementById('store-footer').value
+    };
+    saveState(true);
+    alert('Cập nhật thông tin cửa hàng thành công!');
   }
 
   // --- POS ---
@@ -439,9 +810,9 @@
     grid.innerHTML = '';
 
     state.products
-      .filter(p => p.name.toLowerCase().includes(query))
-      .forEach(p => {
-        grid.innerHTML += `
+            .filter(p => p.name.toLowerCase().includes(query))
+            .forEach(p => {
+              grid.innerHTML += `
             <div onclick="addToCart(${p.id})" class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
                 <div>
                     <h4 class="font-bold text-gray-800">${p.name}</h4>
@@ -453,7 +824,7 @@
                 </div>
             </div>
         `;
-      });
+            });
   }
 
   function addToCart(productId) {
@@ -542,7 +913,8 @@
     state.invoices.push(invoice);
     state.cart = [];
 
-    saveState();
+    // Lưu state & Kích hoạt Tự Động Sao Lưu
+    saveState(true);
     renderCart();
     renderPosProducts();
 
@@ -572,8 +944,8 @@
       const dayLabel = d.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
       const daySales = state.invoices
-        .filter(inv => inv.date.startsWith(dateStr))
-        .reduce((sum, inv) => sum + inv.total, 0);
+              .filter(inv => inv.date.startsWith(dateStr))
+              .reduce((sum, inv) => sum + inv.total, 0);
 
       days.push(dayLabel);
       salesData.push(daySales);
@@ -634,7 +1006,7 @@
     const stock = Number(document.getElementById('prod-stock').value);
 
     state.products.push({ id: Date.now(), name, price, stock });
-    saveState();
+    saveState(true);
     toggleProductModal(false);
     renderProductTable();
     renderPosProducts();
@@ -644,7 +1016,7 @@
   function deleteProduct(id) {
     if (confirm('Xóa sản phẩm này?')) {
       state.products = state.products.filter(p => p.id !== id);
-      saveState();
+      saveState(true);
       renderProductTable();
       renderPosProducts();
     }
@@ -683,7 +1055,7 @@
     const phone = document.getElementById('cust-phone').value;
 
     state.customers.push({ id: Date.now(), name, phone, spent: 0 });
-    saveState();
+    saveState(true);
     toggleCustomerModal(false);
     renderCustomerTable();
     populateCustomerSelect();
@@ -693,7 +1065,7 @@
   function deleteCustomer(id) {
     if (confirm('Xóa khách hàng này?')) {
       state.customers = state.customers.filter(c => c.id !== id);
-      saveState();
+      saveState(true);
       renderCustomerTable();
       populateCustomerSelect();
     }
@@ -759,7 +1131,7 @@
   function deleteInvoice(id) {
     if (confirm(`Bạn có chắc muốn xóa hóa đơn ${id}?`)) {
       state.invoices = state.invoices.filter(inv => inv.id !== id);
-      saveState();
+      saveState(true);
       renderInvoiceTable();
       if (document.getElementById('tab-dashboard').classList.contains('active')) {
         renderDashboard();
@@ -809,7 +1181,6 @@
     const custId = document.getElementById('edit-inv-customer').value;
     const newCustomer = state.customers.find(c => c.id == custId);
 
-    // Bỏ tổng tiền cũ ra khỏi tích lũy của khách hàng cũ nếu có
     if (inv.customerId) {
       const oldCust = state.customers.find(c => c.id === inv.customerId);
       if (oldCust) oldCust.spent = Math.max(0, oldCust.spent - inv.total);
@@ -827,12 +1198,11 @@
 
     inv.total = newTotal;
 
-    // Cộng tổng tiền mới vào cho khách hàng mới nếu có
     if (newCustomer) {
       newCustomer.spent += newTotal;
     }
 
-    saveState();
+    saveState(true);
     toggleEditInvoiceModal(false);
     renderInvoiceTable();
     if (document.getElementById('tab-dashboard').classList.contains('active')) {
@@ -847,6 +1217,7 @@
 
     const printArea = document.getElementById('print-area');
     const formattedDate = new Date(inv.date).toLocaleString('vi-VN');
+    const store = state.storeInfo;
 
     let itemsHTML = '';
     inv.items.forEach(item => {
@@ -860,9 +1231,9 @@
 
     printArea.innerHTML = `
       <div style="text-align: center; margin-bottom: 10px;">
-        <h2 style="font-size: 16px; margin: 0; font-weight: bold;">SMART POS STORE</h2>
-        <p style="font-size: 10px; margin: 2px 0;">ĐC: TP. Hồ Chí Minh</p>
-        <p style="font-size: 10px; margin: 2px 0;">SĐT: 0909 123 456</p>
+        <h2 style="font-size: 16px; margin: 0; font-weight: bold;">${store.name}</h2>
+        <p style="font-size: 10px; margin: 2px 0;">ĐC: ${store.address}</p>
+        <p style="font-size: 10px; margin: 2px 0;">SĐT: ${store.phone}</p>
         <hr style="border: 1px dashed #000; margin: 8px 0;">
         <h3 style="font-size: 13px; margin: 0;">HÓA ĐƠN BÁN HÀNG</h3>
         <p style="font-size: 10px; margin: 2px 0;">Mã HĐ: <b>${inv.id}</b></p>
@@ -885,14 +1256,14 @@
         <span>${formatVND(inv.total)}</span>
       </div>
       <div style="text-align: center; margin-top: 15px; font-size: 10px;">
-        <p>Cảm ơn quý khách & hẹn gặp lại!</p>
+        <p>${store.footer}</p>
       </div>
     `;
 
     window.print();
   }
 
-  // --- SAO LƯU & KHÔI PHỤC (EXPORT / IMPORT JSON) ---
+  // --- SAO LƯU & KHÔI PHỤC (EXPORT / IMPORT JSON LOCAL) ---
   function exportDataToJSON(type) {
     let exportData = {};
     let filename = `pos_data_${type}_${new Date().toISOString().split('T')[0]}.json`;
@@ -905,7 +1276,8 @@
       exportData = {
         products: state.products,
         customers: state.customers,
-        invoices: state.invoices
+        invoices: state.invoices,
+        storeInfo: state.storeInfo
       };
     }
 
@@ -938,8 +1310,11 @@
         if (importedData.invoices && Array.isArray(importedData.invoices)) {
           state.invoices = importedData.invoices;
         }
+        if (importedData.storeInfo && typeof importedData.storeInfo === 'object') {
+          state.storeInfo = importedData.storeInfo;
+        }
 
-        saveState();
+        saveState(true);
         initApp();
         alert('Khôi phục dữ liệu thành công!');
         fileInput.value = '';

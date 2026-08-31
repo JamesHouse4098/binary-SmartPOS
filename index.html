@@ -11,8 +11,6 @@
   <script src="js/app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <!-- Google API SDK Client -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
@@ -35,7 +33,6 @@
       }
     }
 
-    /* Animation cho Toast Popup */
     @keyframes slideIn {
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
@@ -50,7 +47,6 @@
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800">
 
-<!-- TOAST NOTIFICATION CONTAINER (Góc trên bên phải, không khóa màn hình) -->
 <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
 <!-- LOGIN SCREEN -->
@@ -81,8 +77,6 @@
 
 <!-- MAIN APP LAYOUT -->
 <div id="app-screen" class="hidden flex h-screen overflow-hidden">
-
-  <!-- SIDEBAR -->
   <aside class="w-64 bg-slate-900 text-white flex flex-col">
     <div class="p-5 text-xl font-bold border-b border-slate-800 flex items-center space-x-3">
       <i class="fa-solid fa-shop text-indigo-400"></i>
@@ -115,10 +109,7 @@
     </div>
   </aside>
 
-  <!-- MAIN CONTENT AREA -->
   <main class="flex-1 bg-gray-50 overflow-y-auto p-6">
-
-    <!-- TAB 1: POS BÁN HÀNG -->
     <section id="tab-pos" class="tab-content active h-full">
       <div class="grid grid-cols-12 gap-6 h-full">
         <div class="col-span-7 flex flex-col h-full">
@@ -127,7 +118,6 @@
           </div>
           <div id="pos-product-grid" class="grid grid-cols-3 gap-4 overflow-y-auto pr-2 flex-1 max-h-[calc(100vh-140px)]"></div>
         </div>
-
         <div class="col-span-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-full">
           <div>
             <h3 class="text-lg font-bold mb-4 flex items-center justify-between border-b pb-3">
@@ -144,7 +134,6 @@
               <p class="text-center text-gray-400 py-8">Chưa có sản phẩm nào trong giỏ</p>
             </div>
           </div>
-
           <div class="border-t pt-4 mt-4 space-y-3">
             <div class="flex justify-between text-base font-bold">
               <span>Tổng Tiền:</span>
@@ -158,7 +147,6 @@
       </div>
     </section>
 
-    <!-- TAB 2: DASHBOARD DOANH SỐ -->
     <section id="tab-dashboard" class="tab-content">
       <h2 class="text-2xl font-bold mb-6">Báo Cáo Doanh Số Biểu Đồ</h2>
       <div class="grid grid-cols-3 gap-6 mb-6">
@@ -177,257 +165,83 @@
       </div>
       <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <h3 class="text-lg font-bold mb-4">Biểu Đồ Doanh Số Các Ngày Trong Tuần</h3>
-        <div class="h-80">
-          <canvas id="salesChart"></canvas>
-        </div>
+        <div class="h-80"><canvas id="salesChart"></canvas></div>
       </div>
     </section>
 
-    <!-- TAB 3: QUẢN LÝ SẢN PHẨM -->
     <section id="tab-products" class="tab-content">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold">Danh Sách Sản Phẩm</h2>
-        <button onclick="toggleProductModal(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition">
-          + Thêm Sản Phẩm
-        </button>
+        <button onclick="toggleProductModal(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition">+ Thêm Sản Phẩm</button>
       </div>
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <table class="w-full text-left border-collapse">
           <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
-          <tr>
-            <th class="p-4">Tên Sản Phẩm</th>
-            <th class="p-4">Giá Bán</th>
-            <th class="p-4">Tồn Kho</th>
-            <th class="p-4 text-right">Thao Tác</th>
-          </tr>
+            <tr>
+              <th class="p-4">Tên Sản Phẩm</th>
+              <th class="p-4">Đơn Vị Tính</th>
+              <th class="p-4">Giá Bán</th>
+              <th class="p-4 text-right">Thao Tác</th>
+            </tr>
           </thead>
           <tbody id="product-table-body" class="divide-y divide-gray-100 text-sm"></tbody>
         </table>
       </div>
     </section>
 
-    <!-- TAB 4: QUẢN LÝ KHÁCH HÀNG -->
     <section id="tab-customers" class="tab-content">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold">Quản Lý Khách Hàng</h2>
-        <button onclick="toggleCustomerModal(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition">
-          + Thêm Khách Hàng
-        </button>
+        <button onclick="toggleCustomerModal(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition">+ Thêm Khách Hàng</button>
       </div>
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <table class="w-full text-left border-collapse">
           <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
-          <tr>
-            <th class="p-4">Họ & Tên</th>
-            <th class="p-4">Số Điện Thoại</th>
-            <th class="p-4">Tổng Chi Tiêu</th>
-            <th class="p-4 text-right">Thao Tác</th>
-          </tr>
+            <tr>
+              <th class="p-4">Họ & Tên</th>
+              <th class="p-4">Số Điện Thoại</th>
+              <th class="p-4 text-right">Thao Tác</th>
+            </tr>
           </thead>
           <tbody id="customer-table-body" class="divide-y divide-gray-100 text-sm"></tbody>
         </table>
       </div>
     </section>
 
-    <!-- TAB 5: LỊCH SỬ HÓA ĐƠN -->
     <section id="tab-invoices" class="tab-content">
       <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
         <h2 class="text-2xl font-bold">Lịch Sử Hóa Đơn</h2>
-        <div class="flex items-center space-x-2 bg-white p-2 rounded-xl shadow-sm border border-gray-200">
-          <span class="text-xs font-bold text-gray-500 pl-2">Từ:</span>
-          <input type="date" id="filter-start" onchange="renderInvoiceTable()" class="text-sm p-1 border rounded focus:outline-none focus:ring-1 focus:ring-indigo-500">
-          <span class="text-xs font-bold text-gray-500">Đến:</span>
-          <input type="date" id="filter-end" onchange="renderInvoiceTable()" class="text-sm p-1 border rounded focus:outline-none focus:ring-1 focus:ring-indigo-500">
-          <button onclick="resetInvoiceFilter()" class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-medium">Bỏ Lọc</button>
-        </div>
       </div>
-
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <table class="w-full text-left border-collapse">
           <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
-          <tr>
-            <th class="p-4">Mã Hóa Đơn</th>
-            <th class="p-4">Thời Gian</th>
-            <th class="p-4">Khách Hàng</th>
-            <th class="p-4">Món Đã Mua</th>
-            <th class="p-4 text-right">Tổng Tiền</th>
-            <th class="p-4 text-center">Thao Tác</th>
-          </tr>
+            <tr>
+              <th class="p-4">Mã Hóa Đơn</th>
+              <th class="p-4">Khách Hàng</th>
+              <th class="p-4 text-right">Tổng Tiền</th>
+            </tr>
           </thead>
           <tbody id="invoice-table-body" class="divide-y divide-gray-100 text-sm"></tbody>
         </table>
       </div>
     </section>
 
-    <!-- TAB 6: CÀI ĐẶT & SAO LƯU -->
     <section id="tab-settings" class="tab-content">
       <h2 class="text-2xl font-bold mb-6">Cài Đặt & Sao Lưu Dữ Liệu</h2>
-
-      <!-- GOOGLE DRIVE BACKUP CONFIG CARD -->
       <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-6">
         <div class="flex items-center justify-between mb-4 border-b pb-4">
           <div class="flex items-center space-x-3 text-indigo-600">
             <i class="fa-brands fa-google-drive text-3xl"></i>
             <div>
-              <h3 class="text-lg font-bold text-gray-800">Sao Lưu Tự Động Google Drive</h3>
-              <p class="text-xs text-gray-500">Đảm bảo dữ liệu bán hàng, hóa đơn không bao giờ bị mất</p>
+              <h3 class="text-lg font-bold text-gray-800">Sao Lưu Google Drive</h3>
+              <p class="text-xs text-gray-500">Tự động đẩy bản lưu lên Drive</p>
             </div>
-          </div>
-          <!-- Toggle Bật/Tắt -->
-          <div class="flex items-center space-x-2">
-            <span class="text-xs font-semibold text-gray-600">Bật Sao Lưu:</span>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="drive-backup-toggle" onchange="toggleBackupSetting(this.checked)" class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-            </label>
           </div>
         </div>
-
-        <div class="space-y-4">
-          <!-- Liên kết tài khoản -->
-          <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
-            <div class="flex items-center space-x-3">
-              <i class="fa-solid fa-user-check text-gray-400 text-xl" id="drive-user-icon"></i>
-              <div>
-                <p class="text-sm font-semibold" id="drive-account-status">Chưa liên kết tài khoản Google Drive</p>
-                <p class="text-xs text-gray-400" id="drive-account-email">Vui lòng đăng nhập để bắt đầu sao lưu</p>
-              </div>
-            </div>
-            <button id="btn-link-drive" onclick="connectGoogleDrive()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 shadow-sm">
-              <i class="fa-brands fa-google text-red-500"></i>
-              <span>Liên Kết Drive</span>
-            </button>
-          </div>
-
-          <!-- Tùy chọn chế độ sao lưu -->
-          <div id="drive-options-area" class="opacity-50 pointer-events-none transition-all">
-            <label class="block text-xs font-bold text-gray-600 uppercase mb-2">Chế Độ Sao Lưu Tự Động:</label>
-            <div class="grid grid-cols-2 gap-4 mb-4">
-              <label class="flex items-center p-3 border rounded-xl cursor-pointer hover:bg-indigo-50/50 transition">
-                <input type="radio" name="backup-mode" value="event" onchange="updateBackupMode('event')" checked class="text-indigo-600 focus:ring-indigo-500">
-                <div class="ml-3">
-                  <span class="block text-sm font-bold text-gray-800">Theo Thao Tác</span>
-                  <span class="block text-xs text-gray-500">Sao lưu ngay khi Bán hàng, Thêm HD, Thêm Khách...</span>
-                </div>
-              </label>
-              <label class="flex items-center p-3 border rounded-xl cursor-pointer hover:bg-indigo-50/50 transition">
-                <input type="radio" name="backup-mode" value="timer" onchange="updateBackupMode('timer')" class="text-indigo-600 focus:ring-indigo-500">
-                <div class="ml-3">
-                  <span class="block text-sm font-bold text-gray-800">Định Kỳ 1 Phút</span>
-                  <span class="block text-xs text-gray-500">Tự động sao lưu mỗi 1 phút một lần</span>
-                </div>
-              </label>
-            </div>
-
-            <button onclick="triggerManualBackup()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center space-x-2 shadow-sm">
-              <i class="fa-solid fa-cloud-arrow-up"></i>
-              <span>Bấm Sao Lưu Thủ Công Ngay</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-6 mb-6">
-        <!-- Store Info Settings Card -->
-        <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm col-span-2">
-          <div class="flex items-center space-x-3 mb-4 text-indigo-600">
-            <i class="fa-solid fa-store text-2xl"></i>
-            <h3 class="text-lg font-bold text-gray-800">Thông Tin Cửa Hàng (In Hóa Đơn)</h3>
-          </div>
-          <form onsubmit="saveStoreInfo(event)" class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Tên Cửa Hàng</label>
-              <input type="text" id="store-name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Số Điện Thoại</label>
-              <input type="text" id="store-phone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            </div>
-            <div class="col-span-2">
-              <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Địa Chỉ</label>
-              <input type="text" id="store-address" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            </div>
-            <div class="col-span-2">
-              <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Lời Cảm Ơn (Cuối Hóa Đơn)</label>
-              <input type="text" id="store-footer" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            </div>
-            <div class="col-span-2 text-right mt-2">
-              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2.5 rounded-xl transition inline-flex items-center space-x-2">
-                <i class="fa-solid fa-floppy-disk"></i>
-                <span>Lưu Thông Tin Cửa Hàng</span>
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Export JSON Card -->
-        <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <div class="flex items-center space-x-3 mb-4 text-indigo-600">
-            <i class="fa-solid fa-file-export text-2xl"></i>
-            <h3 class="text-lg font-bold text-gray-800">Xuất Dữ Liệu (Export JSON)</h3>
-          </div>
-          <p class="text-sm text-gray-500 mb-6">Tải xuống file JSON chứa toàn bộ thông tin Sản Phẩm và Khách Hàng hiện tại để sao lưu.</p>
-          <div class="flex flex-col space-y-3">
-            <button onclick="exportDataToJSON('products')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
-              <i class="fa-solid fa-box"></i>
-              <span>Xuất File JSON Sản Phẩm</span>
-            </button>
-            <button onclick="exportDataToJSON('customers')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
-              <i class="fa-solid fa-users"></i>
-              <span>Xuất File JSON Khách Hàng</span>
-            </button>
-            <button onclick="exportDataToJSON('all')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
-              <i class="fa-solid fa-database"></i>
-              <span>Xuất Tất Cả (Sản Phẩm & Khách Hàng)</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Import JSON Card -->
-        <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <div class="flex items-center space-x-3 mb-4 text-amber-500">
-            <i class="fa-solid fa-file-import text-2xl"></i>
-            <h3 class="text-lg font-bold text-gray-800">Khôi Phục Dữ Liệu (Import JSON)</h3>
-          </div>
-          <p class="text-sm text-gray-500 mb-6">Tải lên file JSON đã xuất trước đó để khôi phục hoặc cập nhật danh sách sản phẩm/khách hàng.</p>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-xs font-semibold text-gray-600 uppercase mb-2">Chọn file JSON cần nhập</label>
-              <input type="file" id="import-json-file" accept=".json" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-gray-200 rounded-xl cursor-pointer">
-            </div>
-            <button onclick="importDataFromJSON()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
-              <i class="fa-solid fa-upload"></i>
-              <span>Tải Lên & Khôi Phục Data</span>
-            </button>
-          </div>
-        </div>
+        <button id="btn-link-drive" onclick="connectGoogleDrive()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition">Liên Kết Drive</button>
       </div>
     </section>
-
   </main>
-</div>
-
-<!-- MODAL SỬA BILL / HÓA ĐƠN -->
-<div id="edit-invoice-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-  <div class="bg-white p-6 rounded-2xl w-[500px] shadow-xl">
-    <h3 class="text-lg font-bold mb-4 flex justify-between">
-      <span>Chỉnh Sửa Hóa Đơn: <span id="edit-inv-id" class="text-indigo-600"></span></span>
-    </h3>
-    <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Khách Hàng</label>
-        <select id="edit-inv-customer" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-2">Chi Tiết Sản Phẩm</label>
-        <div id="edit-inv-items" class="space-y-2 border p-3 rounded-lg bg-gray-50"></div>
-      </div>
-    </div>
-    <div class="flex space-x-2 pt-4 border-t mt-4">
-      <button type="button" onclick="toggleEditInvoiceModal(false)" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg font-medium">Hủy</button>
-      <button type="button" onclick="saveEditedInvoice()" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium">Cập Nhật Bill</button>
-    </div>
-  </div>
 </div>
 
 <!-- MODAL THÊM SẢN PHẨM -->
@@ -440,16 +254,16 @@
         <input type="text" id="prod-name" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
       <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Đơn Vị Tính</label>
+        <input type="text" id="prod-unit" value="Cái" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      </div>
+      <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Giá Bán (₫)</label>
         <input type="number" id="prod-price" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Số Lượng Tồn Kho</label>
-        <input type="number" id="prod-stock" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      </div>
       <div class="flex space-x-2 pt-2">
         <button type="button" onclick="toggleProductModal(false)" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg font-medium">Hủy</button>
-        <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium">Lưu</button>
+        <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium">Lưu vào Supabase</button>
       </div>
     </form>
   </div>
@@ -461,7 +275,7 @@
     <h3 class="text-lg font-bold mb-4">Thêm Khách Hàng Mới</h3>
     <form onsubmit="saveCustomer(event)" class="space-y-4">
       <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Tên Khách Hàng</label>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Họ và Tên</label>
         <input type="text" id="cust-name" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
       <div>
@@ -470,7 +284,7 @@
       </div>
       <div class="flex space-x-2 pt-2">
         <button type="button" onclick="toggleCustomerModal(false)" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg font-medium">Hủy</button>
-        <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium">Lưu</button>
+        <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium">Lưu vào Supabase</button>
       </div>
     </form>
   </div>
@@ -479,274 +293,12 @@
 <div id="print-area"></div>
 
 <script>
-  // --- CLIENT ID DÙNG ĐỂ KẾT NỐI DRIVE (Thay Client ID của ông vào đây) ---
   const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
 
-  let state = {
-    products: JSON.parse(localStorage.getItem('pos_products')) || [
-      { id: 1, name: "Cà Phê Muối", price: 29000, stock: 50 },
-      { id: 2, name: "Trà Sữa Oolong", price: 35000, stock: 35 },
-      { id: 3, name: "Bánh Mì Tươi", price: 20000, stock: 15 },
-      { id: 4, name: "Nước Ép Cam", price: 30000, stock: 20 }
-    ],
-    customers: JSON.parse(localStorage.getItem('pos_customers')) || [
-      { id: 1, name: "Nguyễn Văn A", phone: "0901234567", spent: 0 },
-      { id: 2, name: "Trần Thị B", phone: "0987654321", spent: 0 }
-    ],
-    invoices: JSON.parse(localStorage.getItem('pos_invoices')) || [],
-    storeInfo: JSON.parse(localStorage.getItem('pos_store_info')) || {
-      name: "SMART POS STORE",
-      phone: "0909 123 456",
-      address: "TP. Hồ Chí Minh",
-      footer: "Cảm ơn quý khách & hẹn gặp lại!"
-    },
-    cart: []
-  };
-
-  let backupConfig = JSON.parse(localStorage.getItem('pos_backup_config')) || {
-    enabled: false,
-    mode: 'event', // 'event' hoặc 'timer'
-    token: null,
-    userEmail: null
-  };
-
-  let currentEditInvoiceId = null;
-  let chartInstance = null;
-  let tokenClient = null;
-  let timerInterval = null;
-
-  const formatVND = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-
-  function saveState(isUserAction = false) {
-    localStorage.setItem('pos_products', JSON.stringify(state.products));
-    localStorage.setItem('pos_customers', JSON.stringify(state.customers));
-    localStorage.setItem('pos_invoices', JSON.stringify(state.invoices));
-    localStorage.setItem('pos_store_info', JSON.stringify(state.storeInfo));
-
-    // Nếu người dùng thực hiện thao tác dữ liệu và đang bật chế độ sao lưu theo sự kiện
-    if (isUserAction && backupConfig.enabled && backupConfig.mode === 'event') {
-      performDriveBackup();
-    }
-  }
-
-  // --- POPUP TOAST THÔNG BÁO TỰ ĐỘNG KHÔNG KHÓA MÀN HÌNH ---
-  function showToast(message, type = 'success') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    const bgColor = type === 'success' ? 'bg-slate-900 border-indigo-500' : 'bg-red-900 border-red-500';
-
-    toast.className = `toast-show pointer-events-auto flex items-center space-x-3 text-white px-4 py-3 rounded-xl shadow-xl border-l-4 ${bgColor} min-w-[280px]`;
-    toast.innerHTML = `
-      <i class="fa-solid ${type === 'success' ? 'fa-cloud-arrow-up text-indigo-400' : 'fa-triangle-exclamation text-red-400'} text-lg"></i>
-      <div class="text-xs font-medium">${message}</div>
-    `;
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-      toast.classList.remove('toast-show');
-      toast.classList.add('toast-hide');
-      setTimeout(() => toast.remove(), 300);
-    }, 4000);
-  }
-
-  // --- GOOGLE DRIVE INTEGRATION ---
-  function initGoogleDriveSDK() {
-    if (typeof google === 'undefined' || !google.accounts) return;
-
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email',
-      callback: async (response) => {
-        if (response.error) return alert("Lỗi xác thực Google: " + response.error);
-
-        backupConfig.token = response.access_token;
-
-        // Lấy thông tin email người dùng
-        try {
-          const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${response.access_token}` }
-          });
-          const info = await res.json();
-          backupConfig.userEmail = info.email;
-        } catch (e) {
-          backupConfig.userEmail = "Đã kết nối";
-        }
-
-        saveBackupConfig();
-        updateDriveUI();
-        showToast(`Đã kết nối Drive: ${backupConfig.userEmail}`);
-      },
-    });
-  }
-
-  function saveBackupConfig() {
-    localStorage.setItem('pos_backup_config', JSON.stringify(backupConfig));
-  }
-
-  function connectGoogleDrive() {
-    if (!tokenClient) initGoogleDriveSDK();
-    if (tokenClient) {
-      tokenClient.requestAccessToken({ prompt: 'consent' });
-    } else {
-      alert("Chưa tải xong Google SDK hoặc Client ID chưa đúng!");
-    }
-  }
-
-  function toggleBackupSetting(enabled) {
-    if (enabled && !backupConfig.token) {
-      alert("Vui lòng Bấm 'Liên Kết Drive' với tài khoản Google của ông trước khi bật tính năng này!");
-      document.getElementById('drive-backup-toggle').checked = false;
-      return;
-    }
-    backupConfig.enabled = enabled;
-    saveBackupConfig();
-    updateDriveUI();
-
-    if (enabled) {
-      showToast("Đã BẬT Sao Lưu Tự Động lên Google Drive!");
-      setupTimerBackup();
-    } else {
-      showToast("Đã TẮT Sao Lưu Tự Động!");
-      if (timerInterval) clearInterval(timerInterval);
-    }
-  }
-
-  function updateBackupMode(mode) {
-    backupConfig.mode = mode;
-    saveBackupConfig();
-    setupTimerBackup();
-    showToast(`Đã chuyển chế độ sao lưu: ${mode === 'event' ? 'Theo thao tác' : '1 Phút/Lần'}`);
-  }
-
-  function setupTimerBackup() {
-    if (timerInterval) clearInterval(timerInterval);
-    if (backupConfig.enabled && backupConfig.mode === 'timer') {
-      // Thiết lập đếm giờ 1 phút (60000 ms)
-      timerInterval = setInterval(() => {
-        performDriveBackup();
-      }, 60000);
-    }
-  }
-
-  function updateDriveUI() {
-    const isLinked = !!backupConfig.token;
-    const statusText = document.getElementById('drive-account-status');
-    const emailText = document.getElementById('drive-account-email');
-    const userIcon = document.getElementById('drive-user-icon');
-    const optionsArea = document.getElementById('drive-options-area');
-    const toggle = document.getElementById('drive-backup-toggle');
-
-    toggle.checked = backupConfig.enabled;
-
-    if (isLinked) {
-      statusText.innerText = "Đã liên kết Google Drive";
-      statusText.className = "text-sm font-semibold text-emerald-600";
-      emailText.innerText = backupConfig.userEmail || "TK đã xác thực";
-      userIcon.className = "fa-solid fa-circle-check text-emerald-500 text-xl";
-    } else {
-      statusText.innerText = "Chưa liên kết tài khoản Google Drive";
-      statusText.className = "text-sm font-semibold text-gray-700";
-      emailText.innerText = "Vui lòng đăng nhập để bắt đầu sao lưu";
-      userIcon.className = "fa-solid fa-user-check text-gray-400 text-xl";
-    }
-
-    if (backupConfig.enabled && isLinked) {
-      optionsArea.classList.remove('opacity-50', 'pointer-events-none');
-    } else {
-      optionsArea.classList.add('opacity-50', 'pointer-events-none');
-    }
-
-    const radios = document.getElementsByName('backup-mode');
-    radios.forEach(r => r.checked = (r.value === backupConfig.mode));
-  }
-
-  // API ĐẨY FILE LÊN GOOGLE DRIVE
-  async function performDriveBackup() {
-    if (!backupConfig.token) return;
-
-    const dataToBackup = {
-      products: state.products,
-      customers: state.customers,
-      invoices: state.invoices,
-      storeInfo: state.storeInfo,
-      exportedAt: new Date().toISOString()
-    };
-
-    const fileName = `POS_Backup_Data.json`;
-    const blob = new Blob([JSON.stringify(dataToBackup, null, 2)], { type: 'application/json' });
-
-    try {
-      // Tim xem file backup cũ đã tồn tại chưa
-      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${fileName}' and trashed=false`, {
-        headers: { Authorization: `Bearer ${backupConfig.token}` }
-      });
-      const searchData = await searchRes.json();
-
-      let fileId = null;
-      if (searchData.files && searchData.files.length > 0) {
-        fileId = searchData.files[0].id;
-      }
-
-      let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-      let method = 'POST';
-
-      if (fileId) {
-        url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`;
-        method = 'PATCH';
-      }
-
-      const metadata = { name: fileName, mimeType: 'application/json' };
-      const formData = new FormData();
-      formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      formData.append('file', blob);
-
-      const uploadRes = await fetch(url, {
-        method: method,
-        headers: { Authorization: `Bearer ${backupConfig.token}` },
-        body: formData
-      });
-
-      if (uploadRes.status === 401) {
-        // Token hết hạn -> Báo người dùng liên kết lại
-        showToast("Phiên Google Drive đã hết hạn, vui lòng kết nối lại!", "error");
-        backupConfig.enabled = false;
-        saveBackupConfig();
-        updateDriveUI();
-        return;
-      }
-
-      if (uploadRes.ok) {
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('vi-VN');
-        const dateStr = now.toLocaleDateString('vi-VN');
-        showToast(`Đã sao lưu lúc ${timeStr} - ${dateStr}`);
-      } else {
-        showToast("Sao lưu Drive thất bại!", "error");
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Lỗi kết nối khi sao lưu!", "error");
-    }
-  }
-
-  function triggerManualBackup() {
-    if (!backupConfig.token) return alert("Vui lòng liên kết tài khoản Drive trước!");
-    performDriveBackup();
-  }
-
-  // --- APP INITIALIZATION ---
   function handleLogin(e) {
     e.preventDefault();
-    const u = document.getElementById('username').value;
-    const p = document.getElementById('password').value;
-    if(u === 'admin' && p === '123456') {
-      document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('app-screen').classList.remove('hidden');
-      initApp();
-    } else {
-      document.getElementById('login-error').classList.remove('hidden');
-    }
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app-screen').classList.remove('hidden');
   }
 
   function handleLogout() {
@@ -756,576 +308,19 @@
 
   function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(el => {
-      el.classList.remove('bg-indigo-600', 'text-white');
-      el.classList.add('text-slate-400');
-    });
-
-    document.getElementById(`tab-${tabId}`).classList.add('active');
-    const activeBtn = document.getElementById(`btn-${tabId}`);
-    activeBtn.classList.add('bg-indigo-600', 'text-white');
-    activeBtn.classList.remove('text-slate-400');
-
-    if(tabId === 'dashboard') renderDashboard();
-    if(tabId === 'products') renderProductTable();
-    if(tabId === 'customers') renderCustomerTable();
-    if(tabId === 'invoices') renderInvoiceTable();
-    if(tabId === 'settings') {
-      loadStoreInfoToForm();
-      updateDriveUI();
-    }
+    document.getElementById('tab-' + tabId).classList.add('active');
   }
 
-  function initApp() {
-    renderPosProducts();
-    renderCart();
-    populateCustomerSelect();
-    loadStoreInfoToForm();
-    setTimeout(initGoogleDriveSDK, 1000);
-    setupTimerBackup();
+  function toggleProductModal(show) {
+    document.getElementById('product-modal').classList.toggle('hidden', !show);
   }
 
-  // --- THÔNG TIN CỬA HÀNG ---
-  function loadStoreInfoToForm() {
-    document.getElementById('store-name').value = state.storeInfo.name;
-    document.getElementById('store-phone').value = state.storeInfo.phone;
-    document.getElementById('store-address').value = state.storeInfo.address;
-    document.getElementById('store-footer').value = state.storeInfo.footer;
+  function toggleCustomerModal(show) {
+    document.getElementById('customer-modal').classList.toggle('hidden', !show);
   }
 
-  function saveStoreInfo(e) {
-    e.preventDefault();
-    state.storeInfo = {
-      name: document.getElementById('store-name').value,
-      phone: document.getElementById('store-phone').value,
-      address: document.getElementById('store-address').value,
-      footer: document.getElementById('store-footer').value
-    };
-    saveState(true);
-    alert('Cập nhật thông tin cửa hàng thành công!');
-  }
-
-  // --- POS ---
-  function renderPosProducts() {
-    const query = document.getElementById('pos-search').value.toLowerCase();
-    const grid = document.getElementById('pos-product-grid');
-    grid.innerHTML = '';
-
-    state.products
-            .filter(p => p.name.toLowerCase().includes(query))
-            .forEach(p => {
-              grid.innerHTML += `
-            <div onclick="addToCart(${p.id})" class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
-                <div>
-                    <h4 class="font-bold text-gray-800">${p.name}</h4>
-                    <p class="text-indigo-600 font-semibold text-sm mt-1">${formatVND(p.price)}</p>
-                </div>
-                <div class="mt-3 flex justify-between items-center text-xs text-gray-400">
-                    <span>Kho: ${p.stock}</span>
-                    <span class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md font-bold">+ Thêm</span>
-                </div>
-            </div>
-        `;
-            });
-  }
-
-  function addToCart(productId) {
-    const product = state.products.find(p => p.id === productId);
-    if (!product || product.stock <= 0) return alert('Sản phẩm đã hết hàng!');
-
-    const cartItem = state.cart.find(item => item.id === productId);
-    if (cartItem) {
-      if (cartItem.qty + 1 > product.stock) return alert('Vượt quá số lượng tồn kho!');
-      cartItem.qty++;
-    } else {
-      state.cart.push({ ...product, qty: 1 });
-    }
-    renderCart();
-  }
-
-  function updateCartQty(id, delta) {
-    const item = state.cart.find(i => i.id === id);
-    const product = state.products.find(p => p.id === id);
-
-    if (item) {
-      if (delta > 0 && item.qty + delta > product.stock) return alert('Vượt quá số lượng tồn kho!');
-      item.qty += delta;
-      if (item.qty <= 0) {
-        state.cart = state.cart.filter(i => i.id !== id);
-      }
-    }
-    renderCart();
-  }
-
-  function renderCart() {
-    const container = document.getElementById('cart-items');
-    container.innerHTML = '';
-    let total = 0;
-    let count = 0;
-
-    if (state.cart.length === 0) {
-      container.innerHTML = `<p class="text-center text-gray-400 py-8">Chưa có sản phẩm nào trong giỏ</p>`;
-    } else {
-      state.cart.forEach(item => {
-        total += item.price * item.qty;
-        count += item.qty;
-        container.innerHTML += `
-            <div class="flex items-center justify-between bg-gray-50 p-2.5 rounded-lg">
-                <div class="flex-1">
-                    <h5 class="font-semibold text-sm">${item.name}</h5>
-                    <p class="text-xs text-indigo-600">${formatVND(item.price)}</p>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <button onclick="updateCartQty(${item.id}, -1)" class="w-6 h-6 bg-gray-200 rounded text-sm font-bold">-</button>
-                    <span class="text-sm font-bold w-4 text-center">${item.qty}</span>
-                    <button onclick="updateCartQty(${item.id}, 1)" class="w-6 h-6 bg-gray-200 rounded text-sm font-bold">+</button>
-                </div>
-            </div>
-        `;
-      });
-    }
-
-    document.getElementById('cart-total').innerText = formatVND(total);
-    document.getElementById('cart-count').innerText = `${count} món`;
-  }
-
-  function checkout() {
-    if (state.cart.length === 0) return alert('Giỏ hàng trống!');
-
-    const custId = document.getElementById('cart-customer').value;
-    const customer = state.customers.find(c => c.id == custId);
-    const totalAmount = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-
-    state.cart.forEach(item => {
-      const prod = state.products.find(p => p.id === item.id);
-      if (prod) prod.stock -= item.qty;
-    });
-
-    if (customer) customer.spent += totalAmount;
-
-    const invoice = {
-      id: 'HD' + Date.now().toString().slice(-6),
-      date: new Date().toISOString(),
-      customerId: customer ? customer.id : null,
-      customerName: customer ? customer.name : 'Khách Vãng Lai',
-      items: [...state.cart],
-      total: totalAmount
-    };
-
-    state.invoices.push(invoice);
-    state.cart = [];
-
-    // Lưu state & Kích hoạt Tự Động Sao Lưu
-    saveState(true);
-    renderCart();
-    renderPosProducts();
-
-    if(confirm(`Thanh toán thành công! Mã HĐ: ${invoice.id}\nBạn có muốn IN HÓA ĐƠN ngay không?`)){
-      printInvoice(invoice.id);
-    }
-  }
-
-  // --- DASHBOARD ---
-  function renderDashboard() {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayInvoices = state.invoices.filter(i => i.date.startsWith(todayStr));
-    const todaySales = todayInvoices.reduce((sum, i) => sum + i.total, 0);
-    const todayItems = todayInvoices.reduce((sum, i) => sum + i.items.reduce((s, item) => s + item.qty, 0), 0);
-
-    document.getElementById('dash-today-sales').innerText = formatVND(todaySales);
-    document.getElementById('dash-today-invoices').innerText = todayInvoices.length;
-    document.getElementById('dash-today-items').innerText = todayItems;
-
-    const days = [];
-    const salesData = [];
-
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      const dayLabel = d.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
-
-      const daySales = state.invoices
-              .filter(inv => inv.date.startsWith(dateStr))
-              .reduce((sum, inv) => sum + inv.total, 0);
-
-      days.push(dayLabel);
-      salesData.push(daySales);
-    }
-
-    const ctx = document.getElementById('salesChart').getContext('2d');
-    if (chartInstance) chartInstance.destroy();
-
-    chartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: days,
-        datasets: [{
-          label: 'Doanh số (VNĐ)',
-          data: salesData,
-          backgroundColor: '#6366f1',
-          borderRadius: 8
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { callback: value => value.toLocaleString('vi-VN') + ' ₫' }
-          }
-        }
-      }
-    });
-  }
-
-  // --- QUẢN LÝ SẢN PHẨM & KHÁCH HÀNG ---
-  function renderProductTable() {
-    const tbody = document.getElementById('product-table-body');
-    tbody.innerHTML = '';
-    state.products.forEach(p => {
-      tbody.innerHTML += `
-        <tr>
-            <td class="p-4 font-semibold">${p.name}</td>
-            <td class="p-4 text-indigo-600 font-semibold">${formatVND(p.price)}</td>
-            <td class="p-4">${p.stock}</td>
-            <td class="p-4 text-right">
-                <button onclick="deleteProduct(${p.id})" class="text-red-500 hover:text-red-700 font-semibold">Xóa</button>
-            </td>
-        </tr>
-      `;
-    });
-  }
-
-  function toggleProductModal(show) { document.getElementById('product-modal').style.display = show ? 'flex' : 'none'; }
-
-  function saveProduct(e) {
-    e.preventDefault();
-    const name = document.getElementById('prod-name').value;
-    const price = Number(document.getElementById('prod-price').value);
-    const stock = Number(document.getElementById('prod-stock').value);
-
-    state.products.push({ id: Date.now(), name, price, stock });
-    saveState(true);
-    toggleProductModal(false);
-    renderProductTable();
-    renderPosProducts();
-    e.target.reset();
-  }
-
-  function deleteProduct(id) {
-    if (confirm('Xóa sản phẩm này?')) {
-      state.products = state.products.filter(p => p.id !== id);
-      saveState(true);
-      renderProductTable();
-      renderPosProducts();
-    }
-  }
-
-  function renderCustomerTable() {
-    const tbody = document.getElementById('customer-table-body');
-    tbody.innerHTML = '';
-    state.customers.forEach(c => {
-      tbody.innerHTML += `
-        <tr>
-            <td class="p-4 font-semibold">${c.name}</td>
-            <td class="p-4 text-gray-500">${c.phone}</td>
-            <td class="p-4 text-emerald-600 font-semibold">${formatVND(c.spent)}</td>
-            <td class="p-4 text-right">
-                <button onclick="deleteCustomer(${c.id})" class="text-red-500 hover:text-red-700 font-semibold">Xóa</button>
-            </td>
-        </tr>
-      `;
-    });
-  }
-
-  function populateCustomerSelect() {
-    const select = document.getElementById('cart-customer');
-    select.innerHTML = `<option value="">Khách Vãng Lai</option>`;
-    state.customers.forEach(c => {
-      select.innerHTML += `<option value="${c.id}">${c.name} - ${c.phone}</option>`;
-    });
-  }
-
-  function toggleCustomerModal(show) { document.getElementById('customer-modal').style.display = show ? 'flex' : 'none'; }
-
-  function saveCustomer(e) {
-    e.preventDefault();
-    const name = document.getElementById('cust-name').value;
-    const phone = document.getElementById('cust-phone').value;
-
-    state.customers.push({ id: Date.now(), name, phone, spent: 0 });
-    saveState(true);
-    toggleCustomerModal(false);
-    renderCustomerTable();
-    populateCustomerSelect();
-    e.target.reset();
-  }
-
-  function deleteCustomer(id) {
-    if (confirm('Xóa khách hàng này?')) {
-      state.customers = state.customers.filter(c => c.id !== id);
-      saveState(true);
-      renderCustomerTable();
-      populateCustomerSelect();
-    }
-  }
-
-  // --- QUẢN LÝ LỊCH SỬ HÓA ĐƠN ---
-  function renderInvoiceTable() {
-    const tbody = document.getElementById('invoice-table-body');
-    tbody.innerHTML = '';
-
-    const startDate = document.getElementById('filter-start').value;
-    const endDate = document.getElementById('filter-end').value;
-
-    let filteredInvoices = [...state.invoices];
-
-    if (startDate) {
-      filteredInvoices = filteredInvoices.filter(inv => inv.date.split('T')[0] >= startDate);
-    }
-    if (endDate) {
-      filteredInvoices = filteredInvoices.filter(inv => inv.date.split('T')[0] <= endDate);
-    }
-
-    filteredInvoices.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    if (filteredInvoices.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400">Không tìm thấy hóa đơn nào</td></tr>`;
-      return;
-    }
-
-    filteredInvoices.forEach(inv => {
-      const formattedDate = new Date(inv.date).toLocaleString('vi-VN');
-      const itemsSummary = inv.items.map(item => `${item.name} (x${item.qty})`).join(', ');
-
-      tbody.innerHTML += `
-        <tr class="hover:bg-gray-50 transition">
-          <td class="p-4 font-bold text-indigo-600">${inv.id}</td>
-          <td class="p-4 text-xs text-gray-500">${formattedDate}</td>
-          <td class="p-4 font-medium">${inv.customerName}</td>
-          <td class="p-4 text-xs text-gray-600 max-w-xs truncate" title="${itemsSummary}">${itemsSummary}</td>
-          <td class="p-4 text-right font-bold text-emerald-600">${formatVND(inv.total)}</td>
-          <td class="p-4 text-center space-x-2">
-            <button onclick="printInvoice('${inv.id}')" class="text-indigo-600 hover:text-indigo-800 p-1.5 rounded-lg hover:bg-indigo-50 transition" title="In lại Hóa Đơn">
-              <i class="fa-solid fa-print"></i>
-            </button>
-            <button onclick="openEditInvoiceModal('${inv.id}')" class="text-amber-600 hover:text-amber-800 p-1.5 rounded-lg hover:bg-amber-50 transition" title="Sửa Hóa Đơn">
-              <i class="fa-solid fa-pen-to-square"></i>
-            </button>
-            <button onclick="deleteInvoice('${inv.id}')" class="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition" title="Xóa Hóa Đơn">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `;
-    });
-  }
-
-  function resetInvoiceFilter() {
-    document.getElementById('filter-start').value = '';
-    document.getElementById('filter-end').value = '';
-    renderInvoiceTable();
-  }
-
-  function deleteInvoice(id) {
-    if (confirm(`Bạn có chắc muốn xóa hóa đơn ${id}?`)) {
-      state.invoices = state.invoices.filter(inv => inv.id !== id);
-      saveState(true);
-      renderInvoiceTable();
-      if (document.getElementById('tab-dashboard').classList.contains('active')) {
-        renderDashboard();
-      }
-    }
-  }
-
-  // --- SỬA HÓA ĐƠN ---
-  function openEditInvoiceModal(id) {
-    currentEditInvoiceId = id;
-    const inv = state.invoices.find(i => i.id === id);
-    if (!inv) return;
-
-    document.getElementById('edit-inv-id').innerText = inv.id;
-
-    const custSelect = document.getElementById('edit-inv-customer');
-    custSelect.innerHTML = `<option value="">Khách Vãng Lai</option>`;
-    state.customers.forEach(c => {
-      const selected = c.id === inv.customerId ? 'selected' : '';
-      custSelect.innerHTML += `<option value="${c.id}" ${selected}>${c.name} - ${c.phone}</option>`;
-    });
-
-    const itemsContainer = document.getElementById('edit-inv-items');
-    itemsContainer.innerHTML = '';
-    inv.items.forEach((item, index) => {
-      itemsContainer.innerHTML += `
-        <div class="flex items-center justify-between space-x-2 py-1 border-b border-gray-200 last:border-0">
-          <span class="text-xs font-semibold flex-1">${item.name}</span>
-          <span class="text-xs text-gray-500">${formatVND(item.price)}</span>
-          <input type="number" min="1" id="edit-item-qty-${index}" value="${item.qty}" class="w-16 p-1 border rounded text-xs text-center font-bold">
-        </div>
-      `;
-    });
-
-    toggleEditInvoiceModal(true);
-  }
-
-  function toggleEditInvoiceModal(show) {
-    const modal = document.getElementById('edit-invoice-modal');
-    modal.style.display = show ? 'flex' : 'none';
-  }
-
-  function saveEditedInvoice() {
-    const inv = state.invoices.find(i => i.id === currentEditInvoiceId);
-    if (!inv) return;
-
-    const custId = document.getElementById('edit-inv-customer').value;
-    const newCustomer = state.customers.find(c => c.id == custId);
-
-    if (inv.customerId) {
-      const oldCust = state.customers.find(c => c.id === inv.customerId);
-      if (oldCust) oldCust.spent = Math.max(0, oldCust.spent - inv.total);
-    }
-
-    inv.customerId = newCustomer ? newCustomer.id : null;
-    inv.customerName = newCustomer ? newCustomer.name : 'Khách Vãng Lai';
-
-    let newTotal = 0;
-    inv.items.forEach((item, index) => {
-      const newQty = Number(document.getElementById(`edit-item-qty-${index}`).value) || 1;
-      item.qty = newQty;
-      newTotal += item.price * newQty;
-    });
-
-    inv.total = newTotal;
-
-    if (newCustomer) {
-      newCustomer.spent += newTotal;
-    }
-
-    saveState(true);
-    toggleEditInvoiceModal(false);
-    renderInvoiceTable();
-    if (document.getElementById('tab-dashboard').classList.contains('active')) {
-      renderDashboard();
-    }
-  }
-
-  // --- IN HÓA ĐƠN ---
-  function printInvoice(id) {
-    const inv = state.invoices.find(i => i.id === id);
-    if (!inv) return alert('Không tìm thấy hóa đơn!');
-
-    const printArea = document.getElementById('print-area');
-    const formattedDate = new Date(inv.date).toLocaleString('vi-VN');
-    const store = state.storeInfo;
-
-    let itemsHTML = '';
-    inv.items.forEach(item => {
-      itemsHTML += `
-        <tr style="border-bottom: 1px dashed #ccc;">
-          <td style="padding: 4px 0; font-size: 11px;">${item.name}<br><i>${item.qty} x ${formatVND(item.price)}</i></td>
-          <td style="text-align: right; font-weight: bold; font-size: 11px;">${formatVND(item.price * item.qty)}</td>
-        </tr>
-      `;
-    });
-
-    printArea.innerHTML = `
-      <div style="text-align: center; margin-bottom: 10px;">
-        <h2 style="font-size: 16px; margin: 0; font-weight: bold;">${store.name}</h2>
-        <p style="font-size: 10px; margin: 2px 0;">ĐC: ${store.address}</p>
-        <p style="font-size: 10px; margin: 2px 0;">SĐT: ${store.phone}</p>
-        <hr style="border: 1px dashed #000; margin: 8px 0;">
-        <h3 style="font-size: 13px; margin: 0;">HÓA ĐƠN BÁN HÀNG</h3>
-        <p style="font-size: 10px; margin: 2px 0;">Mã HĐ: <b>${inv.id}</b></p>
-        <p style="font-size: 10px; margin: 2px 0;">Ngày: ${formattedDate}</p>
-        <p style="font-size: 10px; margin: 2px 0;">Khách: <b>${inv.customerName}</b></p>
-      </div>
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
-        <thead>
-          <tr style="border-bottom: 1px solid #000; font-size: 11px; text-align: left;">
-            <th>Món</th>
-            <th style="text-align: right;">Thành tiền</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemsHTML}
-        </tbody>
-      </table>
-      <div style="border-top: 1px dashed #000; padding-top: 5px; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between;">
-        <span>TỔNG TIỀN:</span>
-        <span>${formatVND(inv.total)}</span>
-      </div>
-      <div style="text-align: center; margin-top: 15px; font-size: 10px;">
-        <p>${store.footer}</p>
-      </div>
-    `;
-
-    window.print();
-  }
-
-  // --- SAO LƯU & KHÔI PHỤC (EXPORT / IMPORT JSON LOCAL) ---
-  function exportDataToJSON(type) {
-    let exportData = {};
-    let filename = `pos_data_${type}_${new Date().toISOString().split('T')[0]}.json`;
-
-    if (type === 'products') {
-      exportData = { products: state.products };
-    } else if (type === 'customers') {
-      exportData = { customers: state.customers };
-    } else {
-      exportData = {
-        products: state.products,
-        customers: state.customers,
-        invoices: state.invoices,
-        storeInfo: state.storeInfo
-      };
-    }
-
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", filename);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  }
-
-  function importDataFromJSON() {
-    const fileInput = document.getElementById('import-json-file');
-    const file = fileInput.files[0];
-
-    if (!file) return alert('Vui lòng chọn file JSON để khôi phục!');
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const importedData = JSON.parse(e.target.result);
-
-        if (importedData.products && Array.isArray(importedData.products)) {
-          state.products = importedData.products;
-        }
-        if (importedData.customers && Array.isArray(importedData.customers)) {
-          state.customers = importedData.customers;
-        }
-        if (importedData.invoices && Array.isArray(importedData.invoices)) {
-          state.invoices = importedData.invoices;
-        }
-        if (importedData.storeInfo && typeof importedData.storeInfo === 'object') {
-          state.storeInfo = importedData.storeInfo;
-        }
-
-        saveState(true);
-        initApp();
-        alert('Khôi phục dữ liệu thành công!');
-        fileInput.value = '';
-      } catch (err) {
-        alert('Lỗi định dạng file JSON không hợp lệ!');
-      }
-    };
-
-    reader.readAsText(file);
+  function showToast(msg) {
+    alert(msg);
   }
 </script>
 </body>

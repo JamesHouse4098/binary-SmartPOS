@@ -1,7 +1,3 @@
-// ==========================================
-// 1. CẤU HÌNH SUPABASE API
-// ==========================================
-// Thay thế URL và KEY của bro vào đây nếu dùng Supabase Online Database
 const SUPABASE_URL = 'https://your-supabase-project.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlbG9nYXZ4dGpqYmZjaWlmdWVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNDI3MDYsImV4cCI6MjEwMzcxODcwNn0.RaRNG00RYPpU4JqixjR0d7vpw0Al8JUwJXslIDfh41Y';
 

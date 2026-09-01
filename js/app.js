@@ -1,10 +1,17 @@
+// ==========================================
+// 1. CẤU HÌNH SUPABASE API (FIXED REDECLARATION)
+// ==========================================
 const SUPABASE_URL = 'https://relogavxtjjbfciifuel.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlbG9nYXZ4dGpqYmZjaWlmdWVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNDI3MDYsImV4cCI6MjEwMzcxODcwNn0.RaRNG00RYPpU4JqixjR0d7vpw0Al8JUwJXslIDfh41Y';
 
-let supabase = null;
-if (typeof createClient !== 'undefined' && SUPABASE_URL !== 'https://your-supabase-project.supabase.co') {
-  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (typeof window.supabaseClient === 'undefined') {
+  window.supabaseClient = null;
+  if (typeof createClient !== 'undefined' && SUPABASE_URL !== 'https://your-supabase-project.supabase.co') {
+    window.supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
 }
+
+var supabase = window.supabaseClient;
 
 // ==========================================
 // 2. STATE MANAGEMENT & LOCAL STORAGE
@@ -37,7 +44,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderStoreInfo();
   initDateFilters();
 
-  // Tải dữ liệu từ Supabase API (nếu có cấu hình)
   if (supabase) {
     await fetchProductsFromAPI();
     await fetchCustomersFromAPI();
@@ -185,7 +191,7 @@ function renderPosProducts() {
   filtered.forEach(p => {
     const card = document.createElement('div');
     card.className = "bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between active:scale-95";
-    
+
     let priceText = '';
     if (p.prices && p.prices.length > 1) {
       priceText = `<span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${p.prices.length} Mức giá</span>`;
@@ -264,7 +270,7 @@ function togglePriceSelectorModal(show) {
 function addToCart(product, priceObj) {
   const cartItemKey = `${product.id}_${priceObj.label}_${priceObj.price}`;
   const existing = cart.find(item => item.key === cartItemKey);
-  
+
   if (existing) {
     existing.qty += 1;
   } else {
@@ -356,7 +362,6 @@ async function checkout() {
   orders.unshift(order);
   saveToLocalStorage();
 
-  // Đồng bộ lên Supabase nếu có API
   if (supabase) {
     await supabase.from('orders').insert([order]);
   }
@@ -443,7 +448,7 @@ function renderProductsTable() {
   products.forEach(p => {
     const tr = document.createElement('tr');
     tr.className = "hover:bg-slate-50/50 transition";
-    
+
     let priceListBadge = p.prices.map(pr => `
       <span class="inline-flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md text-xs font-semibold text-slate-700">
         ${pr.label}: <strong class="text-indigo-600">${formatMoney(pr.price)}</strong>
@@ -697,7 +702,7 @@ function renderReports() {
   filteredOrders.forEach(order => {
     totalRevenue += order.total;
     const dateStr = new Date(order.timestamp).toLocaleString('vi-VN');
-    
+
     const tr = document.createElement('tr');
     tr.className = "hover:bg-slate-50/50 transition";
     tr.innerHTML = `

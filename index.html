@@ -6,12 +6,18 @@
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#4f46e5">
   <title>POS System - Smart Store</title>
+  
+  <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Supabase & Chart.js SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- File JavaScript chính -->
+  <script src="js/app.js" defer></script>
 
   <style>
     body { font-family: 'Inter', sans-serif; }
@@ -255,7 +261,7 @@
             </div>
           </div>
         </div>
-        <button id="btn-link-drive" onclick="connectGoogleDrive()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition">Liên Kết Drive</button>
+        <button id="btn-link-drive" onclick="alert('Tính năng liên kết Google Drive đang phát triển!')" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition">Liên Kết Drive</button>
       </div>
     </section>
   </main>
@@ -265,7 +271,7 @@
 <div id="product-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
   <div class="bg-white p-6 rounded-2xl w-96 shadow-xl">
     <h3 class="text-lg font-bold mb-4">Thêm Sản Phẩm Mới</h3>
-    <form onsubmit="saveProduct(event)" class="space-y-4">
+    <form id="form-product" onsubmit="saveProduct(event)" class="space-y-4">
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Tên Sản Phẩm</label>
         <input type="text" id="prod-name" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -290,7 +296,7 @@
 <div id="customer-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
   <div class="bg-white p-6 rounded-2xl w-96 shadow-xl">
     <h3 class="text-lg font-bold mb-4">Thêm Khách Hàng Mới</h3>
-    <form onsubmit="saveCustomer(event)" class="space-y-4">
+    <form id="form-customer" onsubmit="saveCustomer(event)" class="space-y-4">
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Họ và Tên</label>
         <input type="text" id="cust-name" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -307,15 +313,15 @@
   </div>
 </div>
 
+<!-- KHU VỰC IN HÓA ĐƠN -->
 <div id="print-area"></div>
 
 <script>
-  const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
-
   function handleLogin(e) {
     e.preventDefault();
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app-screen').classList.remove('hidden');
+    if (typeof initData === 'function') initData();
   }
 
   function handleLogout() {
@@ -334,10 +340,6 @@
 
   function toggleCustomerModal(show) {
     document.getElementById('customer-modal').classList.toggle('hidden', !show);
-  }
-
-  function showToast(msg) {
-    alert(msg);
   }
 </script>
 </body>

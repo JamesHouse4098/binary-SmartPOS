@@ -37,7 +37,7 @@ let orders = JSON.parse(localStorage.getItem('pos_orders')) || [];
 let cart = [];
 let pendingPinCallback = null;
 
-// Helper chuẩn hóa dữ liệu prices an toàn
+// Helper chuẩn hóa prices: Bắt tuyệt đối trường hợp undefined/null/empty
 function sanitizePrices(product) {
   if (product && Array.isArray(product.prices) && product.prices.length > 0) {
     return product.prices;
@@ -186,11 +186,10 @@ function confirmPin(e) {
 }
 
 // ==========================================
-// 6. POS & SẢN PHẨM (SAFE CLICK & PRICES)
+// 6. POS & SẢN PHẨM
 // ==========================================
 function handlePosProductClick(product) {
   if (!product) return;
-
   const validPrices = sanitizePrices(product);
 
   if (validPrices.length === 1) {

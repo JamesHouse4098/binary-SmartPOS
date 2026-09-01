@@ -136,7 +136,6 @@ function updateCartQty(id, delta) {
   else renderCart();
 }
 
-// Xóa sản phẩm khỏi giỏ hàng
 function removeCartItem(id) {
   cart = cart.filter(i => (i.Id || i.id) != id);
   renderCart();
@@ -179,7 +178,7 @@ function renderCart() {
   `).join('');
 }
 
-// ----------------- THANH TOÁN & IN HÓA ĐƠN CHỮ TO (> 15PX) -----------------
+// ----------------- THANH TOÁN & GỬI BILL TRỰC TIẾP SANG PRINT.HTML -----------------
 function checkout() {
   if (cart.length === 0) return alert('Giỏ hàng đang trống!');
 
@@ -237,11 +236,22 @@ function checkout() {
     </div>
   `;
 
-  document.getElementById('printable-receipt').innerHTML = receiptHTML;
-  toggleReceiptModal(true);
+  // 1. Lưu HTML hóa đơn vào localStorage cho print.html lấy
+  localStorage.setItem('POS_PRINT_DATA', receiptHTML);
+
+  // 2. Mở cửa sổ print.html tự động bật lệnh in
+  const printWindow = window.open('print.html', '_blank', 'width=450,height=600');
+  if (printWindow) {
+    printWindow.focus();
+  } else {
+    alert('Trình duyệt đang chặn Pop-up! Hãy cho phép Pop-up để tự động in bill nhé.');
+  }
+
+  // 3. Clear giỏ hàng sạch sẽ
+  clearCart();
 }
 
-// Bổ sung hàm mở popup in sang print.html độc lập
+// Bổ sung hàm backup nếu vẫn muốn gọi thủ công từ Modal
 function printReceipt() {
   const receiptHTML = document.getElementById('printable-receipt').innerHTML;
   if (!receiptHTML) return alert('Chưa có nội dung hóa đơn!');
@@ -256,7 +266,7 @@ function printReceipt() {
   }
 }
 
-// ----------------- CRUD PRODUCTS (Thêm & Sửa) -----------------
+// ----------------- CRUD PRODUCTS -----------------
 function renderProductTable() {
   const tbody = document.getElementById('product-table-body');
   if (!tbody) return;
@@ -318,7 +328,7 @@ async function deleteProduct(id) {
   await initData();
 }
 
-// ----------------- CRUD CUSTOMERS (Thêm & Sửa Tên/SĐT) -----------------
+// ----------------- CRUD CUSTOMERS -----------------
 function renderCustomerTable() {
   const tbody = document.getElementById('customer-table-body');
   if (!tbody) return;

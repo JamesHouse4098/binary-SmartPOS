@@ -1,155 +1,251 @@
-const SUPABASE_URL = 'https://relogavxtjjbfciifuel.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlbG9nYXZ4dGpqYmZjaWlmdWVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNDI3MDYsImV4cCI6MjEwMzcxODcwNn0.RaRNG00RYPpU4JqixjR0d7vpw0Al8JUwJXslIDfh41Y';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// --- STATE MANAGEMENT ---
+let products = JSON.parse(localStorage.getItem('pos_products')) || [
+  { id: '1', name: 'Cà Phê Đen', unit: 'Ly', prices: [{ label: 'Giá Chuẩn', price: 25000 }, { label: 'Mang Về', price: 20000 }] },
+  { id: '2', name: 'Trà Sữa Thái', unit: 'Ly', prices: [{ label: 'Size M', price: 30000 }, { label: 'Size L', price: 40000 }] },
+  { id: '3', name: 'Bánh Mỳ Thịt', unit: 'Ổ', prices: [{ label: 'Bình Thường', price: 20000 }, { label: 'Đặc Biệt', price: 30000 }] }
+];
 
-let products = [];
-let customers = [];
+let customers = JSON.parse(localStorage.getItem('pos_customers')) || [
+  { id: '1', name: 'Nguyễn Văn A', phone: '0901234567' }
+];
+
+let storeConfig = JSON.parse(localStorage.getItem('pos_store_config')) || {
+  name: 'Cửa Hàng Của Tôi',
+  phone: '0909 123 456',
+  address: '123 Đường ABC, Q. Tân Phú, TP.HCM',
+  pin: '1234'
+};
+
+let orders = JSON.parse(localStorage.getItem('pos_orders')) || [];
 let cart = [];
+let pendingPinCallback = null;
 
+// --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
-  loadStoreSettings();
-  initData();
+  renderStoreInfo();
+  renderPosProducts();
+  renderProductsTable();
+  renderCustomersTable();
+  renderCustomerSelect();
+  initDateFilters();
+  renderReports();
 });
 
-async function initData() {
-  try {
-    await Promise.all([fetchProducts(), fetchCustomers()]);
-    renderPosProducts();
-    renderCustomerSelect();
-    renderProductTable();
-    renderCustomerTable();
-    renderCart();
-  } catch (err) {
-    console.error('Lỗi khởi tạo dữ liệu:', err);
-  }
+function initDateFilters() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('report-start-date').value = today;
+  document.getElementById('report-end-date').value = today;
 }
 
-// ----------------- FETCH DATA -----------------
-async function fetchProducts() {
-  const { data, error } = await db.from('Products').select('*');
-  if (!error) products = data || [];
+// --- UTILS ---
+const formatMoney = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+
+function saveToLocalStorage() {
+  localStorage.setItem('pos_products', JSON.stringify(products));
+  localStorage.setItem('pos_customers', JSON.stringify(customers));
+  localStorage.setItem('pos_store_config', JSON.stringify(storeConfig));
+  localStorage.setItem('pos_orders', JSON.stringify(orders));
 }
 
-async function fetchCustomers() {
-  const { data, error } = await db.from('Customers').select('*');
-  if (!error) customers = data || [];
-}
-
-// ----------------- SWITCH TABS & MODALS -----------------
+// --- NAVIGATION ---
 function switchTab(tab) {
-  ['pos', 'products', 'customers'].forEach(t => {
-    const btn = document.getElementById(`tab-${t}`);
+  ['pos', 'products', 'customers', 'reports'].forEach(t => {
     const section = document.getElementById(`section-${t}`);
-    if (btn && section) {
-      if (t === tab) {
-        btn.className = 'px-4 py-2 rounded-lg bg-white shadow-sm text-indigo-600 font-bold transition';
-        section.classList.remove('hidden');
-      } else {
-        btn.className = 'px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 font-medium transition';
-        section.classList.add('hidden');
-      }
+    const tabBtn = document.getElementById(`tab-${t}`);
+    if (t === tab) {
+      section.classList.remove('hidden');
+      tabBtn.className = 'px-4 py-2 rounded-lg bg-white shadow-sm text-indigo-600 transition font-bold';
+    } else {
+      section.classList.add('hidden');
+      tabBtn.className = 'px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-semibold';
     }
   });
+
+  const searchContainer = document.getElementById('search-container');
+  if (tab === 'pos') {
+    searchContainer.classList.remove('hidden');
+  } else {
+    searchContainer.classList.add('hidden');
+  }
+
+  if (tab === 'reports') renderReports();
 }
 
-function toggleModal(id, show) {
-  const modal = document.getElementById(id);
-  if (!modal) return;
-  if (show) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
-  else { modal.classList.remove('flex'); modal.classList.add('hidden'); }
+// --- STORE CONFIG ---
+function renderStoreInfo() {
+  document.getElementById('header-store-name').innerText = storeConfig.name;
+  document.getElementById('header-store-phone').innerHTML = `<i class="ph ph-phone"></i> ${storeConfig.phone}`;
+  document.getElementById('header-store-address').innerHTML = `<i class="ph ph-map-pin"></i> ${storeConfig.address}`;
 }
 
-function toggleProductModal(show) { toggleModal('product-modal', show); }
-function toggleCustomerModal(show) { toggleModal('customer-modal', show); }
-function toggleStoreSettingsModal(show) { toggleModal('store-modal', show); }
-function toggleReceiptModal(show) { toggleModal('receipt-modal', show); }
-
-// ----------------- CỬA HÀNG SETTINGS -----------------
-function loadStoreSettings() {
-  const store = JSON.parse(localStorage.getItem('store_info')) || {
-    name: 'Cửa Hàng Của Tôi',
-    phone: '0901 234 567',
-    address: 'Hồ Chí Minh'
-  };
-
-  const nameEl = document.getElementById('header-store-name');
-  const phoneEl = document.getElementById('header-store-phone');
-  const addrEl = document.getElementById('header-store-address');
-
-  if (nameEl) nameEl.innerText = store.name;
-  if (phoneEl) phoneEl.innerHTML = `<i class="ph ph-phone"></i> ${store.phone}`;
-  if (addrEl) addrEl.innerHTML = `<i class="ph ph-map-pin"></i> ${store.address}`;
-
-  const inputName = document.getElementById('store-name-input');
-  const inputPhone = document.getElementById('store-phone-input');
-  const inputAddr = document.getElementById('store-address-input');
-
-  if (inputName) inputName.value = store.name;
-  if (inputPhone) inputPhone.value = store.phone;
-  if (inputAddr) inputAddr.value = store.address;
+function toggleStoreSettingsModal(show) {
+  const modal = document.getElementById('store-modal');
+  if (show) {
+    document.getElementById('store-name-input').value = storeConfig.name;
+    document.getElementById('store-phone-input').value = storeConfig.phone;
+    document.getElementById('store-address-input').value = storeConfig.address;
+    document.getElementById('store-pin-input').value = storeConfig.pin || '1234';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  } else {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
 }
 
 function saveStoreSettings(e) {
   e.preventDefault();
-  const storeInfo = {
+  storeConfig = {
     name: document.getElementById('store-name-input').value,
     phone: document.getElementById('store-phone-input').value,
-    address: document.getElementById('store-address-input').value
+    address: document.getElementById('store-address-input').value,
+    pin: document.getElementById('store-pin-input').value || '1234'
   };
-
-  localStorage.setItem('store_info', JSON.stringify(storeInfo));
-  loadStoreSettings();
+  saveToLocalStorage();
+  renderStoreInfo();
   toggleStoreSettingsModal(false);
 }
 
-// ----------------- POS & CART LOGIC -----------------
+// --- PIN SECURITY SYSTEM ---
+function requestPin(callback) {
+  pendingPinCallback = callback;
+  document.getElementById('pin-input').value = '';
+  const modal = document.getElementById('pin-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  setTimeout(() => document.getElementById('pin-input').focus(), 100);
+}
+
+function togglePinModal(show) {
+  const modal = document.getElementById('pin-modal');
+  if (!show) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    pendingPinCallback = null;
+  }
+}
+
+function confirmPin(e) {
+  e.preventDefault();
+  const inputPin = document.getElementById('pin-input').value;
+  if (inputPin === storeConfig.pin) {
+    togglePinModal(false);
+    if (pendingPinCallback) pendingPinCallback();
+  } else {
+    alert('❌ Mã PIN không chính xác!');
+  }
+}
+
+// --- POS & MULTI-PRICE HANDLE ---
 function renderPosProducts() {
+  const query = document.getElementById('pos-search').value.toLowerCase();
   const grid = document.getElementById('pos-product-grid');
-  if (!grid) return;
-  const search = (document.getElementById('pos-search')?.value || '').toLowerCase();
-  
-  const filtered = products.filter(p => (p.Name || '').toLowerCase().includes(search));
-  
-  grid.innerHTML = filtered.map(p => `
-    <div onclick="addToCart(${p.Id || p.id})" class="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:shadow-md cursor-pointer transition active:scale-95 flex flex-col justify-between">
+  grid.innerHTML = '';
+
+  const filtered = products.filter(p => p.name.toLowerCase().includes(query));
+
+  filtered.forEach(p => {
+    const card = document.createElement('div');
+    card.className = "bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between active:scale-95";
+    
+    let priceText = '';
+    if (p.prices && p.prices.length > 1) {
+      priceText = `<span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${p.prices.length} Mức giá</span>`;
+    } else {
+      const singlePrice = (p.prices && p.prices.length > 0) ? p.prices[0].price : 0;
+      priceText = `<span class="font-bold text-indigo-600 text-sm">${formatMoney(singlePrice)}</span>`;
+    }
+
+    card.innerHTML = `
       <div>
-        <h4 class="font-bold text-slate-800 text-sm mb-1">${p.Name}</h4>
-        <span class="text-xs text-slate-400">ĐVT: ${p.Unit || 'Cái'}</span>
+        <h4 class="font-bold text-slate-800 text-sm leading-snug line-clamp-2">${p.name}</h4>
+        <p class="text-xs text-slate-400 mt-1">ĐVT: ${p.unit || '---'}</p>
       </div>
-      <div class="mt-3 text-indigo-600 font-bold text-base">${Number(p.Price || 0).toLocaleString('vi-VN')} ₫</div>
-    </div>
-  `).join('');
+      <div class="mt-3 flex justify-between items-center">
+        ${priceText}
+        <div class="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 font-bold">
+          <i class="ph-bold ph-plus"></i>
+        </div>
+      </div>
+    `;
+    card.onclick = () => handlePosProductClick(p);
+    grid.appendChild(card);
+  });
 }
 
-function renderCustomerSelect() {
-  const select = document.getElementById('cart-customer');
-  if (!select) return;
-  select.innerHTML = `<option value="">Khách Vãng Lai</option>` + 
-    customers.map(c => `<option value="${c.Id || c.id}">${c.FullName} ${c.Phone ? '- ' + c.Phone : ''}</option>`).join('');
+function handlePosProductClick(product) {
+  if (!product.prices || product.prices.length === 0) return;
+
+  if (product.prices.length === 1) {
+    addToCart(product, product.prices[0]);
+  } else {
+    openPriceSelectorModal(product);
+  }
 }
 
-function addToCart(id) {
-  const product = products.find(p => (p.Id || p.id) == id);
-  if (!product) return;
+function openPriceSelectorModal(product) {
+  const container = document.getElementById('price-selector-options');
+  document.getElementById('price-selector-title').innerText = `Chọn giá - ${product.name}`;
+  container.innerHTML = '';
+
+  product.prices.forEach((priceObj) => {
+    const btn = document.createElement('button');
+    btn.className = "w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl flex justify-between items-center transition active:scale-95 text-left";
+    btn.innerHTML = `
+      <span class="font-semibold text-sm text-slate-700">${priceObj.label || 'Mức giá'}</span>
+      <span class="font-bold text-indigo-600 text-sm">${formatMoney(priceObj.price)}</span>
+    `;
+    btn.onclick = () => {
+      addToCart(product, priceObj);
+      togglePriceSelectorModal(false);
+    };
+    container.appendChild(btn);
+  });
+
+  const modal = document.getElementById('price-selector-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function togglePriceSelectorModal(show) {
+  const modal = document.getElementById('price-selector-modal');
+  if (show) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  } else {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+// --- CART MANAGEMENT ---
+function addToCart(product, priceObj) {
+  const cartItemKey = `${product.id}_${priceObj.label}_${priceObj.price}`;
+  const existing = cart.find(item => item.key === cartItemKey);
   
-  const item = cart.find(i => (i.Id || i.id) == id);
-  if (item) item.quantity += 1;
-  else cart.push({ ...product, quantity: 1 });
-  
+  if (existing) {
+    existing.qty += 1;
+  } else {
+    cart.push({
+      key: cartItemKey,
+      productId: product.id,
+      name: product.name,
+      label: priceObj.label,
+      price: Number(priceObj.price),
+      qty: 1
+    });
+  }
   renderCart();
 }
 
-function updateCartQty(id, delta) {
-  const item = cart.find(i => (i.Id || i.id) == id);
-  if (!item) return;
-  
-  item.quantity += delta;
-  if (item.quantity <= 0) removeCartItem(id);
-  else renderCart();
-}
-
-function removeCartItem(id) {
-  cart = cart.filter(i => (i.Id || i.id) != id);
+function updateCartQty(key, delta) {
+  const item = cart.find(i => i.key === key);
+  if (item) {
+    item.qty += delta;
+    if (item.qty <= 0) {
+      cart = cart.filter(i => i.key !== key);
+    }
+  }
   renderCart();
 }
 
@@ -160,193 +256,275 @@ function clearCart() {
 
 function renderCart() {
   const container = document.getElementById('cart-items');
-  const totalEl = document.getElementById('cart-total');
-  const countEl = document.getElementById('cart-count');
+  container.innerHTML = '';
+  let total = 0;
 
-  const total = cart.reduce((sum, i) => sum + (i.Price || 0) * i.quantity, 0);
-  const count = cart.reduce((sum, i) => sum + i.quantity, 0);
+  cart.forEach(item => {
+    const itemTotal = item.price * item.qty;
+    total += itemTotal;
 
-  if (totalEl) totalEl.innerText = `${total.toLocaleString('vi-VN')} ₫`;
-  if (countEl) countEl.innerText = `${count} món`;
+    const div = document.createElement('div');
+    div.className = "bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center";
+    div.innerHTML = `
+      <div class="min-w-0 pr-2">
+        <h5 class="font-bold text-xs text-slate-800 truncate">${item.name}</h5>
+        <div class="text-[11px] text-slate-500">
+          <span class="text-indigo-600 font-medium">${item.label ? item.label + ': ' : ''}</span>${formatMoney(item.price)}
+        </div>
+      </div>
+      <div class="flex items-center space-x-2 shrink-0">
+        <div class="flex items-center border border-slate-200 rounded-lg bg-white overflow-hidden">
+          <button onclick="updateCartQty('${item.key}', -1)" class="px-2 py-0.5 text-slate-600 hover:bg-slate-100 font-bold">-</button>
+          <span class="px-2 text-xs font-bold text-slate-800">${item.qty}</span>
+          <button onclick="updateCartQty('${item.key}', 1)" class="px-2 py-0.5 text-slate-600 hover:bg-slate-100 font-bold">+</button>
+        </div>
+        <span class="text-xs font-bold text-slate-800 w-16 text-right">${formatMoney(itemTotal)}</span>
+      </div>
+    `;
+    container.appendChild(div);
+  });
 
-  if (!container) return;
+  document.getElementById('cart-total').innerText = formatMoney(total);
+}
 
+// --- CHECKOUT & BILL GENERATION ---
+function checkout() {
   if (cart.length === 0) {
-    container.innerHTML = `<p class="text-center text-slate-400 py-12 text-sm">Chưa có sản phẩm nào trong giỏ</p>`;
+    alert('Giỏ hàng đang trống!');
     return;
   }
 
-  container.innerHTML = cart.map(i => `
-    <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-      <div class="flex-1 pr-2">
-        <h5 class="text-xs font-bold text-slate-800 line-clamp-1">${i.Name}</h5>
-        <span class="text-xs text-slate-500">${Number(i.Price || 0).toLocaleString('vi-VN')} ₫</span>
-      </div>
-      <div class="flex items-center space-x-1.5">
-        <button onclick="updateCartQty(${i.Id || i.id}, -1)" class="w-6 h-6 bg-white border border-slate-200 rounded-lg font-bold text-xs hover:bg-slate-100 flex items-center justify-center">-</button>
-        <span class="text-xs font-semibold text-slate-700 w-5 text-center">${i.quantity}</span>
-        <button onclick="updateCartQty(${i.Id || i.id}, 1)" class="w-6 h-6 bg-white border border-slate-200 rounded-lg font-bold text-xs hover:bg-slate-100 flex items-center justify-center">+</button>
-        <button onclick="removeCartItem(${i.Id || i.id})" class="text-slate-400 hover:text-red-500 ml-1 text-sm"><i class="ph-bold ph-trash"></i></button>
-      </div>
-    </div>
-  `).join('');
+  const customerId = document.getElementById('cart-customer').value;
+  const cust = customers.find(c => c.id === customerId);
+
+  const order = {
+    id: 'BILL' + Date.now().toString().slice(-6),
+    timestamp: new Date().toISOString(),
+    customerName: cust ? cust.name : 'Khách Vãng Lai',
+    customerPhone: cust ? cust.phone : '',
+    items: [...cart],
+    total: cart.reduce((sum, item) => sum + (item.price * item.qty), 0)
+  };
+
+  orders.unshift(order);
+  saveToLocalStorage();
+  renderReceipt(order);
+  toggleReceiptModal(true);
+  clearCart();
 }
 
-// ----------------- THANH TOÁN & SANG PRINT.HTML -----------------
-function checkout() {
-  if (cart.length === 0) return alert('Giỏ hàng đang trống!');
-
-  const store = JSON.parse(localStorage.getItem('store_info')) || { name: 'Cửa Hàng Của Tôi', phone: '---', address: '---' };
-  const custSelect = document.getElementById('cart-customer');
-  const custId = custSelect ? custSelect.value : '';
-  const customer = customers.find(c => (c.Id || c.id) == custId);
-  const custName = customer ? customer.FullName : 'Khách Vãng Lai';
-  const custPhone = customer && customer.Phone ? customer.Phone : '---';
-
-  const now = new Date();
-  const createdTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} ${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
-  const total = cart.reduce((sum, i) => sum + (i.Price || 0) * i.quantity, 0);
-
+function renderReceipt(order) {
+  const dateStr = new Date(order.timestamp).toLocaleString('vi-VN');
   const receiptHTML = `
-    <div class="text-center pb-3 border-b border-dashed border-slate-300">
-      <h2 class="font-bold text-2xl text-slate-900">${store.name}</h2>
-      <p class="text-base">Đ/c: ${store.address}</p>
-      <p class="text-base">SĐT: ${store.phone}</p>
+    <div class="text-center border-b border-dashed border-slate-300 pb-4 mb-4">
+      <h2 class="font-bold text-xl text-slate-900">${storeConfig.name}</h2>
+      <p class="text-xs text-slate-600">${storeConfig.address}</p>
+      <p class="text-xs text-slate-600">ĐT: ${storeConfig.phone}</p>
+      <h3 class="font-bold text-base mt-3 uppercase tracking-wider text-slate-800">HÓA ĐƠN THANH TOÁN</h3>
+      <p class="text-xs text-slate-500">Mã: ${order.id} | Ngày: ${dateStr}</p>
+      <p class="text-xs text-slate-500">Khách hàng: ${order.customerName}</p>
     </div>
 
-    <div class="py-2 border-b border-dashed border-slate-300 text-base">
-      <p><strong>Ngày tạo:</strong> ${createdTime}</p>
-      <p><strong>Khách hàng:</strong> ${custName}</p>
-      <p><strong>SĐT:</strong> ${custPhone}</p>
-    </div>
-
-    <table class="w-full text-left my-3 text-base">
+    <table class="w-full text-xs text-left mb-4">
       <thead>
         <tr class="border-b border-slate-300">
           <th class="py-1">Tên SP</th>
           <th class="py-1 text-center">SL</th>
-          <th class="py-1 text-right">Đơn giá</th>
+          <th class="py-1 text-right">Đ.Giá</th>
           <th class="py-1 text-right">T.Tiền</th>
         </tr>
       </thead>
-      <tbody>
-        ${cart.map(i => `
-          <tr class="border-b border-slate-100">
-            <td class="py-1.5">${i.Name}</td>
-            <td class="py-1.5 text-center">${i.quantity}</td>
-            <td class="py-1.5 text-right">${Number(i.Price).toLocaleString('vi-VN')}</td>
-            <td class="py-1.5 text-right font-semibold">${Number(i.Price * i.quantity).toLocaleString('vi-VN')}</td>
+      <tbody class="divide-y divide-slate-100">
+        ${order.items.map(i => `
+          <tr>
+            <td class="py-1.5 font-medium">${i.name} <span class="text-[10px] text-slate-400">(${i.label})</span></td>
+            <td class="py-1.5 text-center">${i.qty}</td>
+            <td class="py-1.5 text-right">${formatMoney(i.price)}</td>
+            <td class="py-1.5 text-right font-bold">${formatMoney(i.price * i.qty)}</td>
           </tr>
         `).join('')}
       </tbody>
     </table>
 
-    <div class="pt-2 border-t border-slate-400 text-right text-lg">
-      <p class="font-bold">TỔNG THÀNH TIỀN:</p>
-      <p class="text-2xl font-black text-indigo-700 total-price">${total.toLocaleString('vi-VN')} ₫</p>
+    <div class="border-t border-dashed border-slate-300 pt-3 text-right space-y-1">
+      <div class="text-sm font-black flex justify-between">
+        <span>TỔNG CỘNG:</span>
+        <span class="text-base text-indigo-600">${formatMoney(order.total)}</span>
+      </div>
     </div>
-
-    <div class="text-center pt-4 text-base italic text-slate-600">
-      <p>Cảm ơn quý khách và hẹn gặp lại!</p>
+    
+    <div class="text-center text-xs text-slate-500 mt-6 pt-4 border-t border-slate-200">
+      Cảm ơn quý khách & Hẹn gặp lại!
     </div>
   `;
+  document.getElementById('printable-receipt').innerHTML = receiptHTML;
+}
 
-  // 1. Lưu hóa đơn vào LocalStorage
-  localStorage.setItem('POS_PRINT_DATA', receiptHTML);
-
-  // 2. Mở cửa sổ print.html
-  const win = window.open('print.html', '_blank', 'width=450,height=600');
-  if (!win) {
-    alert('Trình duyệt đang chặn Pop-up! Vui lòng bấm vào biểu tượng icon trên thanh địa chỉ để "Cho phép Pop-up" nhé!');
+function toggleReceiptModal(show) {
+  const modal = document.getElementById('receipt-modal');
+  if (show) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  } else {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
   }
-
-  // 3. Clear giỏ hàng
-  clearCart();
 }
 
 function printReceipt() {
-  checkout();
+  window.print();
 }
 
-// ----------------- CRUD PRODUCTS -----------------
-function renderProductTable() {
+// --- PRODUCT MANAGEMENT & MULTI-PRICE EDIT ---
+function renderProductsTable() {
   const tbody = document.getElementById('product-table-body');
-  if (!tbody) return;
-  tbody.innerHTML = products.map(p => `
-    <tr class="hover:bg-slate-50/80 transition">
-      <td class="p-4 font-medium text-slate-800">${p.Name}</td>
-      <td class="p-4 text-slate-500">${p.Unit || 'Cái'}</td>
-      <td class="p-4 font-bold text-indigo-600">${Number(p.Price || 0).toLocaleString('vi-VN')} ₫</td>
+  tbody.innerHTML = '';
+
+  products.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-50/50 transition";
+    
+    let priceListBadge = p.prices.map(pr => `
+      <span class="inline-flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md text-xs font-semibold text-slate-700">
+        ${pr.label}: <strong class="text-indigo-600">${formatMoney(pr.price)}</strong>
+      </span>
+    `).join(' ');
+
+    tr.innerHTML = `
+      <td class="p-4 font-bold text-slate-800">${p.name}</td>
+      <td class="p-4 text-slate-500">${p.unit || '---'}</td>
+      <td class="p-4 flex flex-wrap gap-1.5">${priceListBadge}</td>
       <td class="p-4 text-right space-x-2">
-        <button onclick="editProduct(${p.Id || p.id})" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs">Sửa</button>
-        <button onclick="deleteProduct(${p.Id || p.id})" class="text-red-500 hover:text-red-700 font-semibold text-xs">Xóa</button>
+        <button onclick="editProduct('${p.id}')" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs px-2 py-1 bg-indigo-50 rounded-lg">Sửa</button>
+        <button onclick="deleteProduct('${p.id}')" class="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 bg-red-50 rounded-lg">Xóa</button>
       </td>
-    </tr>
-  `).join('');
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 function openProductModal() {
   document.getElementById('prod-id').value = '';
   document.getElementById('prod-name').value = '';
   document.getElementById('prod-unit').value = '';
-  document.getElementById('prod-price').value = '';
   document.getElementById('prod-modal-title').innerText = 'Thêm Sản Phẩm Mới';
+
+  const container = document.getElementById('price-rows-container');
+  container.innerHTML = '';
+  addPriceRow('Giá Chuẩn', '');
+
   toggleProductModal(true);
+}
+
+function addPriceRow(label = '', price = '') {
+  const container = document.getElementById('price-rows-container');
+  const div = document.createElement('div');
+  div.className = "flex items-center gap-2 price-row";
+  div.innerHTML = `
+    <input type="text" placeholder="Tên mức giá (vd: Giá sỉ, Size L)" value="${label}" required class="flex-1 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-label-input">
+    <input type="number" placeholder="Giá bán" value="${price}" min="0" required class="w-28 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-value-input">
+    <button type="button" onclick="this.parentElement.remove()" class="p-2 text-red-500 hover:bg-red-50 rounded-lg"><i class="ph-bold ph-trash"></i></button>
+  `;
+  container.appendChild(div);
+}
+
+function saveProduct(e) {
+  e.preventDefault();
+  const id = document.getElementById('prod-id').value;
+  const name = document.getElementById('prod-name').value;
+  const unit = document.getElementById('prod-unit').value;
+
+  const priceRows = document.querySelectorAll('.price-row');
+  const prices = [];
+  priceRows.forEach(row => {
+    const label = row.querySelector('.price-label-input').value;
+    const price = Number(row.querySelector('.price-value-input').value);
+    prices.push({ label, price });
+  });
+
+  if (prices.length === 0) {
+    alert('Sản phẩm phải có ít nhất một mức giá!');
+    return;
+  }
+
+  if (id) {
+    const index = products.findIndex(p => p.id === id);
+    if (index !== -1) products[index] = { id, name, unit, prices };
+  } else {
+    products.push({ id: Date.now().toString(), name, unit, prices });
+  }
+
+  saveToLocalStorage();
+  renderProductsTable();
+  renderPosProducts();
+  toggleProductModal(false);
 }
 
 function editProduct(id) {
-  const p = products.find(item => (item.Id || item.id) == id);
+  const p = products.find(prod => prod.id === id);
   if (!p) return;
-  document.getElementById('prod-id').value = p.Id || p.id;
-  document.getElementById('prod-name').value = p.Name;
-  document.getElementById('prod-unit').value = p.Unit || '';
-  document.getElementById('prod-price').value = p.Price;
+
+  document.getElementById('prod-id').value = p.id;
+  document.getElementById('prod-name').value = p.name;
+  document.getElementById('prod-unit').value = p.unit;
   document.getElementById('prod-modal-title').innerText = 'Chỉnh Sửa Sản Phẩm';
+
+  const container = document.getElementById('price-rows-container');
+  container.innerHTML = '';
+  p.prices.forEach(pr => addPriceRow(pr.label, pr.price));
+
   toggleProductModal(true);
 }
 
-async function saveProduct(e) {
-  e.preventDefault();
-  const id = document.getElementById('prod-id').value;
-  const Name = document.getElementById('prod-name').value;
-  const Unit = document.getElementById('prod-unit').value;
-  const Price = parseFloat(document.getElementById('prod-price').value);
-
-  const keyName = (products.length > 0 && products[0].Id !== undefined) ? 'Id' : 'id';
-
-  if (id) {
-    const { error } = await db.from('Products').update({ Name, Unit, Price }).eq(keyName, id);
-    if (error) return alert('Lỗi sửa sản phẩm: ' + error.message);
-  } else {
-    const { error } = await db.from('Products').insert([{ Name, Unit, Price }]);
-    if (error) return alert('Lỗi thêm sản phẩm: ' + error.message);
+function deleteProduct(id) {
+  if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
+    products = products.filter(p => p.id !== id);
+    saveToLocalStorage();
+    renderProductsTable();
+    renderPosProducts();
   }
-
-  toggleProductModal(false);
-  await initData();
 }
 
-async function deleteProduct(id) {
-  if (!confirm('Xóa sản phẩm này?')) return;
-  const keyName = (products.length > 0 && products[0].Id !== undefined) ? 'Id' : 'id';
-  await db.from('Products').delete().eq(keyName, id);
-  await initData();
+function toggleProductModal(show) {
+  const modal = document.getElementById('product-modal');
+  if (show) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  } else {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
 }
 
-// ----------------- CRUD CUSTOMERS -----------------
-function renderCustomerTable() {
+// --- CUSTOMER MANAGEMENT ---
+function renderCustomersTable() {
   const tbody = document.getElementById('customer-table-body');
-  if (!tbody) return;
-  tbody.innerHTML = customers.map(c => `
-    <tr class="hover:bg-slate-50/80 transition">
-      <td class="p-4 font-medium text-slate-800">${c.FullName}</td>
-      <td class="p-4 text-slate-500">${c.Phone || '---'}</td>
+  tbody.innerHTML = '';
+
+  customers.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-50/50 transition";
+    tr.innerHTML = `
+      <td class="p-4 font-bold text-slate-800">${c.name}</td>
+      <td class="p-4 text-slate-500">${c.phone || '---'}</td>
       <td class="p-4 text-right space-x-2">
-        <button onclick="editCustomer(${c.Id || c.id})" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs">Sửa</button>
-        <button onclick="deleteCustomer(${c.Id || c.id})" class="text-red-500 hover:text-red-700 font-semibold text-xs">Xóa</button>
+        <button onclick="editCustomer('${c.id}')" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs px-2 py-1 bg-indigo-50 rounded-lg">Sửa</button>
+        <button onclick="deleteCustomer('${c.id}')" class="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 bg-red-50 rounded-lg">Xóa</button>
       </td>
-    </tr>
-  `).join('');
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderCustomerSelect() {
+  const select = document.getElementById('cart-customer');
+  select.innerHTML = '<option value="">Khách Vãng Lai</option>';
+  customers.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.innerText = `${c.name} ${c.phone ? '(' + c.phone + ')' : ''}`;
+    select.appendChild(opt);
+  });
 }
 
 function openCustomerModal() {
@@ -357,39 +535,109 @@ function openCustomerModal() {
   toggleCustomerModal(true);
 }
 
+function saveCustomer(e) {
+  e.preventDefault();
+  const id = document.getElementById('cust-id').value;
+  const name = document.getElementById('cust-name').value;
+  const phone = document.getElementById('cust-phone').value;
+
+  if (id) {
+    const idx = customers.findIndex(c => c.id === id);
+    if (idx !== -1) customers[idx] = { id, name, phone };
+  } else {
+    customers.push({ id: Date.now().toString(), name, phone });
+  }
+
+  saveToLocalStorage();
+  renderCustomersTable();
+  renderCustomerSelect();
+  toggleCustomerModal(false);
+}
+
 function editCustomer(id) {
-  const c = customers.find(item => (item.Id || item.id) == id);
+  const c = customers.find(cust => cust.id === id);
   if (!c) return;
-  document.getElementById('cust-id').value = c.Id || c.id;
-  document.getElementById('cust-name').value = c.FullName;
-  document.getElementById('cust-phone').value = c.Phone || '';
+
+  document.getElementById('cust-id').value = c.id;
+  document.getElementById('cust-name').value = c.name;
+  document.getElementById('cust-phone').value = c.phone;
   document.getElementById('cust-modal-title').innerText = 'Chỉnh Sửa Khách Hàng';
   toggleCustomerModal(true);
 }
 
-async function saveCustomer(e) {
-  e.preventDefault();
-  const id = document.getElementById('cust-id').value;
-  const FullName = document.getElementById('cust-name').value;
-  const Phone = document.getElementById('cust-phone').value;
-
-  const keyName = (customers.length > 0 && customers[0].Id !== undefined) ? 'Id' : 'id';
-
-  if (id) {
-    const { error } = await db.from('Customers').update({ FullName, Phone }).eq(keyName, id);
-    if (error) return alert('Lỗi sửa khách hàng: ' + error.message);
-  } else {
-    const { error } = await db.from('Customers').insert([{ FullName, Phone }]);
-    if (error) return alert('Lỗi thêm khách hàng: ' + error.message);
+function deleteCustomer(id) {
+  if (confirm('Xóa khách hàng này?')) {
+    customers = customers.filter(c => c.id !== id);
+    saveToLocalStorage();
+    renderCustomersTable();
+    renderCustomerSelect();
   }
-
-  toggleCustomerModal(false);
-  await initData();
 }
 
-async function deleteCustomer(id) {
-  if (!confirm('Xóa khách hàng này?')) return;
-  const keyName = (customers.length > 0 && customers[0].Id !== undefined) ? 'Id' : 'id';
-  await db.from('Customers').delete().eq(keyName, id);
-  await initData();
+function toggleCustomerModal(show) {
+  const modal = document.getElementById('customer-modal');
+  if (show) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  } else {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+// --- REPORT & BILL MANAGEMENT WITH PIN AUTHENTICATION ---
+function renderReports() {
+  const startDate = document.getElementById('report-start-date').value;
+  const endDate = document.getElementById('report-end-date').value;
+
+  const tbody = document.getElementById('report-table-body');
+  tbody.innerHTML = '';
+  let totalRevenue = 0;
+
+  const filteredOrders = orders.filter(order => {
+    const orderDate = order.timestamp.split('T')[0];
+    if (startDate && orderDate < startDate) return false;
+    if (endDate && orderDate > endDate) return false;
+    return true;
+  });
+
+  filteredOrders.forEach(order => {
+    totalRevenue += order.total;
+    const dateStr = new Date(order.timestamp).toLocaleString('vi-VN');
+    
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-50/50 transition";
+    tr.innerHTML = `
+      <td class="p-4 font-bold text-indigo-600 font-mono">${order.id}</td>
+      <td class="p-4 text-slate-500 text-xs">${dateStr}</td>
+      <td class="p-4 text-slate-800 font-semibold">${order.customerName}</td>
+      <td class="p-4 font-bold text-slate-800">${formatMoney(order.total)}</td>
+      <td class="p-4 text-right space-x-2">
+        <button onclick="viewReportReceipt('${order.id}')" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs px-2.5 py-1 bg-indigo-50 rounded-lg">Xem Bill</button>
+        <button onclick="deleteBillWithPin('${order.id}')" class="text-red-500 hover:text-red-700 font-semibold text-xs px-2.5 py-1 bg-red-50 rounded-lg">Xóa Bill</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('report-total-revenue').innerText = formatMoney(totalRevenue);
+}
+
+function viewReportReceipt(orderId) {
+  const order = orders.find(o => o.id === orderId);
+  if (order) {
+    renderReceipt(order);
+    toggleReceiptModal(true);
+  }
+}
+
+function deleteBillWithPin(orderId) {
+  requestPin(() => {
+    if (confirm(`Xác nhận xóa Bill ${orderId}? Thao tác này sẽ cập nhật lại báo cáo doanh thu.`)) {
+      orders = orders.filter(o => o.id !== orderId);
+      saveToLocalStorage();
+      renderReports();
+      alert('✅ Đã xóa bill thành công!');
+    }
+  });
 }

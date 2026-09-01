@@ -44,8 +44,17 @@
       </div>
     </div>
 
-    <div class="flex items-center space-x-2">
-      <button onclick="toggleStoreSettingsModal(true)" class="flex items-center space-x-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition active:scale-95">
+    <div class="flex items-center space-x-3">
+      <!-- Nút Tải SmartPOS ADVANCED -->
+      <a href="https://github.com/JamesHouse4098/SmartPOS-ADVANCED/raw/refs/heads/main/SmartPOS+_setup.exe" 
+         target="_blank" 
+         class="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold px-4 py-2 rounded-xl shadow-md shadow-emerald-100 transition active:scale-95 text-sm">
+        <i class="ph-bold ph-download-simple text-base"></i>
+        <span>Tải SmartPOS ADVANCED</span>
+      </a>
+
+      <!-- Nút Cấu hình Cửa hàng -->
+      <button onclick="toggleStoreSettingsModal(true)" class="flex items-center space-x-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition active:scale-95 border border-slate-200">
         <i class="ph-bold ph-gear text-base text-slate-600"></i>
         <span>Cấu hình Cửa Hàng</span>
       </button>
@@ -264,6 +273,6 @@
     </div>
   </div>
 
-  <script src="./js/app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

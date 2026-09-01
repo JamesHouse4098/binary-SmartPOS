@@ -1,4 +1,3 @@
-// Cấu hình Supabase Client
 const SUPABASE_URL = 'https://relogavxtjjbfciifuel.supabase.co/rest/v1/';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlbG9nYXZ4dGpqYmZjaWlmdWVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNDI3MDYsImV4cCI6MjEwMzcxODcwNn0.RaRNG00RYPpU4JqixjR0d7vpw0Al8JUwJXslIDfh41Y';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -8,7 +7,6 @@ let customers = [];
 let invoices = [];
 let cart = [];
 
-// Khởi tạo ứng dụng khi load xong DOM
 document.addEventListener('DOMContentLoaded', () => {
   initData();
 });
@@ -37,6 +35,29 @@ async function fetchCustomers() {
 async function fetchInvoices() {
   const { data, error } = await db.from('invoices').select('*, customers(name)').order('created_at', { ascending: false });
   if (!error) invoices = data || [];
+}
+
+// ----------------- MODALS CONTROL -----------------
+function toggleProductModal(show) {
+  const modal = document.getElementById('product-modal');
+  if (show) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  } else {
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+  }
+}
+
+function toggleCustomerModal(show) {
+  const modal = document.getElementById('customer-modal');
+  if (show) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  } else {
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+  }
 }
 
 // ----------------- POS LOGIC -----------------
@@ -120,7 +141,6 @@ async function checkout() {
   const customerId = document.getElementById('cart-customer').value || null;
   const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  // Tạo Hóa Đơn
   const { data: invoice, error } = await db.from('invoices').insert({
     customer_id: customerId,
     total: parseFloat(total)
@@ -128,7 +148,6 @@ async function checkout() {
 
   if (error) return alert('Lỗi khi thanh toán: ' + error.message);
 
-  // Thêm Chi Tiết Hóa Đơn
   const items = cart.map(i => ({
     invoice_id: invoice.id,
     product_id: i.id,
@@ -138,7 +157,6 @@ async function checkout() {
 
   await db.from('invoice_items').insert(items);
 
-  // In hóa đơn & reset
   printReceipt(invoice.id, total);
   cart = [];
   renderCart();

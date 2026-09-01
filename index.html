@@ -7,16 +7,13 @@
   <meta name="theme-color" content="#4f46e5">
   <title>POS System - Smart Store</title>
   
-  <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Supabase & Chart.js SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- File JavaScript chính -->
   <script src="js/app.js" defer></script>
 
   <style>
@@ -40,20 +37,13 @@
         line-height: 1.4;
         font-weight: 600;
       }
-      
       #print-area h1, #print-area h2, #print-area .title {
         font-size: 22px;
         font-weight: bold;
         text-align: center;
       }
-      #print-area table {
-        width: 100%;
-        font-size: 15px;
-      }
-      #print-area .total {
-        font-size: 18px;
-        font-weight: bold;
-      }
+      #print-area table { width: 100%; font-size: 15px; }
+      #print-area .total { font-size: 18px; font-weight: bold; }
     }
 
     @keyframes slideIn {
@@ -268,52 +258,52 @@
 </div>
 
 <!-- MODAL THÊM SẢN PHẨM -->
-<div id="product-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-  <div class="bg-white p-6 rounded-2xl w-96 shadow-xl">
+<div id="product-modal" class="fixed inset-0 bg-black/50 z-[9999] hidden items-center justify-center p-4">
+  <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl relative transform transition-all">
     <h3 class="text-lg font-bold mb-4">Thêm Sản Phẩm Mới</h3>
     <form id="form-product" onsubmit="saveProduct(event)" class="space-y-4">
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Tên Sản Phẩm</label>
-        <input type="text" id="prod-name" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <input type="text" id="prod-name" required class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Đơn Vị Tính</label>
-        <input type="text" id="prod-unit" value="Cái" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <input type="text" id="prod-unit" value="Cái" required class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Giá Bán (₫)</label>
-        <input type="number" id="prod-price" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <input type="number" id="prod-price" required class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
       <div class="flex space-x-2 pt-2">
-        <button type="button" onclick="toggleProductModal(false)" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg font-medium">Hủy</button>
-        <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium">Lưu vào Supabase</button>
+        <button type="button" onclick="toggleProductModal(false)" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-lg font-medium transition">Hủy</button>
+        <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-medium transition">Lưu vào Supabase</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- MODAL THÊM KHÁCH HÀNG -->
-<div id="customer-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-  <div class="bg-white p-6 rounded-2xl w-96 shadow-xl">
+<div id="customer-modal" class="fixed inset-0 bg-black/50 z-[9999] hidden items-center justify-center p-4">
+  <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl relative transform transition-all">
     <h3 class="text-lg font-bold mb-4">Thêm Khách Hàng Mới</h3>
     <form id="form-customer" onsubmit="saveCustomer(event)" class="space-y-4">
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Họ và Tên</label>
-        <input type="text" id="cust-name" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <input type="text" id="cust-name" required class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-1">Số Điện Thoại</label>
-        <input type="text" id="cust-phone" required class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <input type="text" id="cust-phone" required class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
       <div class="flex space-x-2 pt-2">
-        <button type="button" onclick="toggleCustomerModal(false)" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg font-medium">Hủy</button>
-        <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium">Lưu vào Supabase</button>
+        <button type="button" onclick="toggleCustomerModal(false)" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-lg font-medium transition">Hủy</button>
+        <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-medium transition">Lưu vào Supabase</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- KHU VỰC IN HÓA ĐƠN -->
+<!-- PRINT AREA -->
 <div id="print-area"></div>
 
 <script>
@@ -332,14 +322,6 @@
   function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.add('active');
-  }
-
-  function toggleProductModal(show) {
-    document.getElementById('product-modal').classList.toggle('hidden', !show);
-  }
-
-  function toggleCustomerModal(show) {
-    document.getElementById('customer-modal').classList.toggle('hidden', !show);
   }
 </script>
 </body>

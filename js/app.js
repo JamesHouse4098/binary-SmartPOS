@@ -241,6 +241,21 @@ function checkout() {
   toggleReceiptModal(true);
 }
 
+// Bổ sung hàm mở popup in sang print.html độc lập
+function printReceipt() {
+  const receiptHTML = document.getElementById('printable-receipt').innerHTML;
+  if (!receiptHTML) return alert('Chưa có nội dung hóa đơn!');
+
+  localStorage.setItem('POS_PRINT_DATA', receiptHTML);
+  const printWindow = window.open('print.html', '_blank', 'width=450,height=600');
+  
+  if (printWindow) {
+    printWindow.focus();
+  } else {
+    alert('Vui lòng cho phép mở Pop-up trên trình duyệt để in hóa đơn!');
+  }
+}
+
 // ----------------- CRUD PRODUCTS (Thêm & Sửa) -----------------
 function renderProductTable() {
   const tbody = document.getElementById('product-table-body');

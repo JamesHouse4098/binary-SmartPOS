@@ -1,5 +1,5 @@
 // ==========================================
-// 1. CẤU HÌNH SUPABASE API (FIXED REDECLARATION)
+// 1. CẤU HÌNH SUPABASE API
 // ==========================================
 const SUPABASE_URL = 'https://relogavxtjjbfciifuel.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlbG9nYXZ4dGpqYmZjaWlmdWVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNDI3MDYsImV4cCI6MjEwMzcxODcwNn0.RaRNG00RYPpU4JqixjR0d7vpw0Al8JUwJXslIDfh41Y';
@@ -17,9 +17,9 @@ var supabase = window.supabaseClient;
 // 2. STATE MANAGEMENT & LOCAL STORAGE
 // ==========================================
 let products = JSON.parse(localStorage.getItem('pos_products')) || [
-  { id: '1', name: 'Cà Phê Đen', unit: 'Ly', prices: [{ label: 'Giá Chuẩn', price: 25000 }, { label: 'Mang Về', price: 20000 }] },
-  { id: '2', name: 'Trà Sữa Thái', unit: 'Ly', prices: [{ label: 'Size M', price: 30000 }, { label: 'Size L', price: 40000 }] },
-  { id: '3', name: 'Bánh Mỳ Thịt', unit: 'Ổ', prices: [{ label: 'Bình Thường', price: 20000 }, { label: 'Đặc Biệt', price: 30000 }] }
+  { id: '1', name: 'Găng VGLOVE - Size M', unit: 'Hộp', prices: [{ label: 'Giá Chuẩn', price: 0 }] },
+  { id: '2', name: 'Bông Viên TT - Bảo Thạch', unit: 'Gói', prices: [{ label: 'Giá Chuẩn', price: 0 }] },
+  { id: '3', name: 'Dây B/Braun', unit: 'Sợi', prices: [{ label: 'Giá Chuẩn', price: 0 }] }
 ];
 
 let customers = JSON.parse(localStorage.getItem('pos_customers')) || [
@@ -36,6 +36,24 @@ let storeConfig = JSON.parse(localStorage.getItem('pos_store_config')) || {
 let orders = JSON.parse(localStorage.getItem('pos_orders')) || [];
 let cart = [];
 let pendingPinCallback = null;
+
+// Helper chuẩn hóa dữ liệu prices an toàn
+function sanitizePrices(product) {
+  if (product && Array.isArray(product.prices) && product.prices.length > 0) {
+    return product.prices;
+  }
+  const fallbackPrice = Number(product?.price) || 0;
+  return [{ label: 'Giá Chuẩn', price: fallbackPrice }];
+}
+
+const formatMoney = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
+
+function saveToLocalStorage() {
+  localStorage.setItem('pos_products', JSON.stringify(products));
+  localStorage.setItem('pos_customers', JSON.stringify(customers));
+  localStorage.setItem('pos_store_config', JSON.stringify(storeConfig));
+  localStorage.setItem('pos_orders', JSON.stringify(orders));
+}
 
 // ==========================================
 // 3. KHI TRANG TẢI XONG
@@ -63,15 +81,6 @@ function initDateFilters() {
   const endDate = document.getElementById('report-end-date');
   if (startDate) startDate.value = today;
   if (endDate) endDate.value = today;
-}
-
-const formatMoney = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-
-function saveToLocalStorage() {
-  localStorage.setItem('pos_products', JSON.stringify(products));
-  localStorage.setItem('pos_customers', JSON.stringify(customers));
-  localStorage.setItem('pos_store_config', JSON.stringify(storeConfig));
-  localStorage.setItem('pos_orders', JSON.stringify(orders));
 }
 
 // ==========================================
@@ -140,7 +149,7 @@ function saveStoreSettings(e) {
 }
 
 // ==========================================
-// 5. MÃ PIN BẢO MẬT (DÙNG CHO SỬA / XÓA BILL)
+// 5. MÃ PIN BẢO MẬT
 // ==========================================
 function requestPin(callback) {
   pendingPinCallback = callback;
@@ -177,8 +186,20 @@ function confirmPin(e) {
 }
 
 // ==========================================
-// 6. POS & SẢN PHẨM ĐA MỨC GIÁ
+// 6. POS & SẢN PHẨM (SAFE CLICK & PRICES)
 // ==========================================
+function handlePosProductClick(product) {
+  if (!product) return;
+
+  const validPrices = sanitizePrices(product);
+
+  if (validPrices.length === 1) {
+    addToCart(product, validPrices[0]);
+  } else {
+    openPriceSelectorModal(product);
+  }
+}
+
 function renderPosProducts() {
   const searchInput = document.getElementById('pos-search');
   const query = searchInput ? searchInput.value.toLowerCase() : '';
@@ -186,17 +207,19 @@ function renderPosProducts() {
   if (!grid) return;
   grid.innerHTML = '';
 
-  const filtered = products.filter(p => p.name.toLowerCase().includes(query));
+  const filtered = products.filter(p => p.name && p.name.toLowerCase().includes(query));
 
   filtered.forEach(p => {
-    const card = document.createElement('div');
-    card.className = "bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between active:scale-95";
+    const prices = sanitizePrices(p);
 
+    const card = document.createElement('div');
+    card.className = "bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between active:scale-95 select-none";
+    
     let priceText = '';
-    if (p.prices && p.prices.length > 1) {
-      priceText = `<span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${p.prices.length} Mức giá</span>`;
+    if (prices.length > 1) {
+      priceText = `<span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${prices.length} Mức giá</span>`;
     } else {
-      const singlePrice = (p.prices && p.prices.length > 0) ? p.prices[0].price : 0;
+      const singlePrice = prices[0].price;
       priceText = `<span class="font-bold text-indigo-600 text-sm">${formatMoney(singlePrice)}</span>`;
     }
 
@@ -205,26 +228,20 @@ function renderPosProducts() {
         <h4 class="font-bold text-slate-800 text-sm leading-snug line-clamp-2">${p.name}</h4>
         <p class="text-xs text-slate-400 mt-1">ĐVT: ${p.unit || '---'}</p>
       </div>
-      <div class="mt-3 flex justify-between items-center">
+      <div class="mt-3 flex justify-between items-center pointer-events-none">
         ${priceText}
         <div class="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 font-bold">
           <i class="ph-bold ph-plus"></i>
         </div>
       </div>
     `;
-    card.onclick = () => handlePosProductClick(p);
+
+    card.addEventListener('click', () => {
+      handlePosProductClick(p);
+    });
+
     grid.appendChild(card);
   });
-}
-
-function handlePosProductClick(product) {
-  if (!product.prices || product.prices.length === 0) return;
-
-  if (product.prices.length === 1) {
-    addToCart(product, product.prices[0]);
-  } else {
-    openPriceSelectorModal(product);
-  }
 }
 
 function openPriceSelectorModal(product) {
@@ -234,7 +251,9 @@ function openPriceSelectorModal(product) {
   if (!container) return;
   container.innerHTML = '';
 
-  product.prices.forEach((priceObj) => {
+  const validPrices = sanitizePrices(product);
+
+  validPrices.forEach((priceObj) => {
     const btn = document.createElement('button');
     btn.className = "w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl flex justify-between items-center transition active:scale-95 text-left";
     btn.innerHTML = `
@@ -338,7 +357,7 @@ function renderCart() {
 }
 
 // ==========================================
-// 8. THANH TOÁN & TẠO HÓA ĐƠN
+// 8. THANH TOÁN & HÓA ĐƠN
 // ==========================================
 async function checkout() {
   if (cart.length === 0) {
@@ -438,7 +457,7 @@ function printReceipt() {
 }
 
 // ==========================================
-// 9. QUẢN LÝ SẢN PHẨM & ĐA MỨC GIÁ
+// 9. QUẢN LÝ SẢN PHẨM (SAFE FROM UNDEFINED MAP)
 // ==========================================
 function renderProductsTable() {
   const tbody = document.getElementById('product-table-body');
@@ -446,17 +465,19 @@ function renderProductsTable() {
   tbody.innerHTML = '';
 
   products.forEach(p => {
+    const prices = sanitizePrices(p);
+
     const tr = document.createElement('tr');
     tr.className = "hover:bg-slate-50/50 transition";
 
-    let priceListBadge = p.prices.map(pr => `
+    const priceListBadge = prices.map(pr => `
       <span class="inline-flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md text-xs font-semibold text-slate-700">
-        ${pr.label}: <strong class="text-indigo-600">${formatMoney(pr.price)}</strong>
+        ${pr.label || 'Mức giá'}: <strong class="text-indigo-600">${formatMoney(pr.price)}</strong>
       </span>
     `).join(' ');
 
     tr.innerHTML = `
-      <td class="p-4 font-bold text-slate-800">${p.name}</td>
+      <td class="p-4 font-bold text-slate-800">${p.name || '---'}</td>
       <td class="p-4 text-slate-500">${p.unit || '---'}</td>
       <td class="p-4 flex flex-wrap gap-1.5">${priceListBadge}</td>
       <td class="p-4 text-right space-x-2">
@@ -546,7 +567,8 @@ function editProduct(id) {
   const container = document.getElementById('price-rows-container');
   if (container) {
     container.innerHTML = '';
-    p.prices.forEach(pr => addPriceRow(pr.label, pr.price));
+    const prices = sanitizePrices(p);
+    prices.forEach(pr => addPriceRow(pr.label, pr.price));
   }
 
   toggleProductModal(true);
@@ -678,7 +700,7 @@ function toggleCustomerModal(show) {
 }
 
 // ==========================================
-// 11. BÁO CÁO & XÓA BILL CÓ XÁC THỰC PIN
+// 11. BÁO CÁO & XÓA BILL VỚI PIN
 // ==========================================
 function renderReports() {
   const startDateEl = document.getElementById('report-start-date');

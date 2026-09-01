@@ -12,12 +12,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initData() {
-  await Promise.all([fetchProducts(), fetchCustomers()]);
-  renderPosProducts();
-  renderCustomerSelect();
-  renderProductTable();
-  renderCustomerTable();
-  renderCart();
+  try {
+    await Promise.all([fetchProducts(), fetchCustomers()]);
+    renderPosProducts();
+    renderCustomerSelect();
+    renderProductTable();
+    renderCustomerTable();
+    renderCart();
+  } catch (err) {
+    console.error('Lỗi khởi tạo dữ liệu:', err);
+  }
 }
 
 // ----------------- FETCH DATA -----------------
@@ -68,13 +72,21 @@ function loadStoreSettings() {
     address: 'Hồ Chí Minh'
   };
 
-  document.getElementById('header-store-name').innerText = store.name;
-  document.getElementById('header-store-phone').innerHTML = `<i class="ph ph-phone"></i> ${store.phone}`;
-  document.getElementById('header-store-address').innerHTML = `<i class="ph ph-map-pin"></i> ${store.address}`;
+  const nameEl = document.getElementById('header-store-name');
+  const phoneEl = document.getElementById('header-store-phone');
+  const addrEl = document.getElementById('header-store-address');
 
-  document.getElementById('store-name-input').value = store.name;
-  document.getElementById('store-phone-input').value = store.phone;
-  document.getElementById('store-address-input').value = store.address;
+  if (nameEl) nameEl.innerText = store.name;
+  if (phoneEl) phoneEl.innerHTML = `<i class="ph ph-phone"></i> ${store.phone}`;
+  if (addrEl) addrEl.innerHTML = `<i class="ph ph-map-pin"></i> ${store.address}`;
+
+  const inputName = document.getElementById('store-name-input');
+  const inputPhone = document.getElementById('store-phone-input');
+  const inputAddr = document.getElementById('store-address-input');
+
+  if (inputName) inputName.value = store.name;
+  if (inputPhone) inputPhone.value = store.phone;
+  if (inputAddr) inputAddr.value = store.address;
 }
 
 function saveStoreSettings(e) {
@@ -157,6 +169,8 @@ function renderCart() {
   if (totalEl) totalEl.innerText = `${total.toLocaleString('vi-VN')} ₫`;
   if (countEl) countEl.innerText = `${count} món`;
 
+  if (!container) return;
+
   if (cart.length === 0) {
     container.innerHTML = `<p class="text-center text-slate-400 py-12 text-sm">Chưa có sản phẩm nào trong giỏ</p>`;
     return;
@@ -178,12 +192,13 @@ function renderCart() {
   `).join('');
 }
 
-// ----------------- THANH TOÁN & GỬI BILL TRỰC TIẾP SANG PRINT.HTML -----------------
+// ----------------- THANH TOÁN & SANG PRINT.HTML -----------------
 function checkout() {
   if (cart.length === 0) return alert('Giỏ hàng đang trống!');
 
   const store = JSON.parse(localStorage.getItem('store_info')) || { name: 'Cửa Hàng Của Tôi', phone: '---', address: '---' };
-  const custId = document.getElementById('cart-customer').value;
+  const custSelect = document.getElementById('cart-customer');
+  const custId = custSelect ? custSelect.value : '';
   const customer = customers.find(c => (c.Id || c.id) == custId);
   const custName = customer ? customer.FullName : 'Khách Vãng Lai';
   const custPhone = customer && customer.Phone ? customer.Phone : '---';
@@ -236,34 +251,21 @@ function checkout() {
     </div>
   `;
 
-  // 1. Lưu HTML hóa đơn vào localStorage cho print.html lấy
+  // 1. Lưu hóa đơn vào LocalStorage
   localStorage.setItem('POS_PRINT_DATA', receiptHTML);
 
-  // 2. Mở cửa sổ print.html tự động bật lệnh in
-  const printWindow = window.open('print.html', '_blank', 'width=450,height=600');
-  if (printWindow) {
-    printWindow.focus();
-  } else {
-    alert('Trình duyệt đang chặn Pop-up! Hãy cho phép Pop-up để tự động in bill nhé.');
+  // 2. Mở cửa sổ print.html
+  const win = window.open('print.html', '_blank', 'width=450,height=600');
+  if (!win) {
+    alert('Trình duyệt đang chặn Pop-up! Vui lòng bấm vào biểu tượng icon trên thanh địa chỉ để "Cho phép Pop-up" nhé!');
   }
 
-  // 3. Clear giỏ hàng sạch sẽ
+  // 3. Clear giỏ hàng
   clearCart();
 }
 
-// Bổ sung hàm backup nếu vẫn muốn gọi thủ công từ Modal
 function printReceipt() {
-  const receiptHTML = document.getElementById('printable-receipt').innerHTML;
-  if (!receiptHTML) return alert('Chưa có nội dung hóa đơn!');
-
-  localStorage.setItem('POS_PRINT_DATA', receiptHTML);
-  const printWindow = window.open('print.html', '_blank', 'width=450,height=600');
-  
-  if (printWindow) {
-    printWindow.focus();
-  } else {
-    alert('Vui lòng cho phép mở Pop-up trên trình duyệt để in hóa đơn!');
-  }
+  checkout();
 }
 
 // ----------------- CRUD PRODUCTS -----------------
@@ -310,8 +312,10 @@ async function saveProduct(e) {
   const Unit = document.getElementById('prod-unit').value;
   const Price = parseFloat(document.getElementById('prod-price').value);
 
+  const keyName = (products.length > 0 && products[0].Id !== undefined) ? 'Id' : 'id';
+
   if (id) {
-    const { error } = await db.from('Products').update({ Name, Unit, Price }).eq(products[0]?.Id !== undefined ? 'Id' : 'id', id);
+    const { error } = await db.from('Products').update({ Name, Unit, Price }).eq(keyName, id);
     if (error) return alert('Lỗi sửa sản phẩm: ' + error.message);
   } else {
     const { error } = await db.from('Products').insert([{ Name, Unit, Price }]);
@@ -324,7 +328,8 @@ async function saveProduct(e) {
 
 async function deleteProduct(id) {
   if (!confirm('Xóa sản phẩm này?')) return;
-  await db.from('Products').delete().eq(products[0]?.Id !== undefined ? 'Id' : 'id', id);
+  const keyName = (products.length > 0 && products[0].Id !== undefined) ? 'Id' : 'id';
+  await db.from('Products').delete().eq(keyName, id);
   await initData();
 }
 
@@ -368,8 +373,10 @@ async function saveCustomer(e) {
   const FullName = document.getElementById('cust-name').value;
   const Phone = document.getElementById('cust-phone').value;
 
+  const keyName = (customers.length > 0 && customers[0].Id !== undefined) ? 'Id' : 'id';
+
   if (id) {
-    const { error } = await db.from('Customers').update({ FullName, Phone }).eq(customers[0]?.Id !== undefined ? 'Id' : 'id', id);
+    const { error } = await db.from('Customers').update({ FullName, Phone }).eq(keyName, id);
     if (error) return alert('Lỗi sửa khách hàng: ' + error.message);
   } else {
     const { error } = await db.from('Customers').insert([{ FullName, Phone }]);
@@ -382,6 +389,7 @@ async function saveCustomer(e) {
 
 async function deleteCustomer(id) {
   if (!confirm('Xóa khách hàng này?')) return;
-  await db.from('Customers').delete().eq(customers[0]?.Id !== undefined ? 'Id' : 'id', id);
+  const keyName = (customers.length > 0 && customers[0].Id !== undefined) ? 'Id' : 'id';
+  await db.from('Customers').delete().eq(keyName, id);
   await initData();
 }

@@ -65,15 +65,16 @@
   <div class="flex-1 flex overflow-hidden">
     <main class="flex-1 flex flex-col min-w-0 bg-slate-50">
       
-      <!-- Toolbar -->
+      <!-- Toolbar Tabs -->
       <div class="p-4 bg-white border-b border-slate-200 flex flex-wrap gap-3 items-center justify-between shrink-0">
         <div class="flex bg-slate-100 p-1 rounded-xl text-sm font-semibold">
           <button id="tab-pos" onclick="switchTab('pos')" class="px-4 py-2 rounded-lg bg-white shadow-sm text-indigo-600 transition">Bán Hàng (POS)</button>
           <button id="tab-products" onclick="switchTab('products')" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">Sản Phẩm</button>
           <button id="tab-customers" onclick="switchTab('customers')" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">Khách Hàng</button>
+          <button id="tab-reports" onclick="switchTab('reports')" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">Báo Cáo & Bill</button>
         </div>
 
-        <div class="relative min-w-[240px]">
+        <div id="search-container" class="relative min-w-[240px]">
           <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
           <input type="text" id="pos-search" oninput="renderPosProducts()" placeholder="Tìm sản phẩm..." class="w-full pl-9 pr-4 py-2 bg-slate-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition">
         </div>
@@ -90,7 +91,7 @@
         <!-- SECTION 2: PRODUCTS MANAGEMENT -->
         <div id="section-products" class="hidden animate-fade-in">
           <div class="flex justify-between items-center mb-4">
-            <h2 class="text-base font-bold text-slate-800">Danh Sách Sản Phẩm</h2>
+            <h2 class="text-base font-bold text-slate-800">Danh Sách Sản Phẩm & Đa Mức Giá</h2>
             <button onclick="openProductModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition active:scale-95 flex items-center gap-1.5">
               <i class="ph-bold ph-plus"></i> Thêm Sản Phẩm
             </button>
@@ -101,7 +102,7 @@
                 <tr>
                   <th class="p-4">Tên Sản Phẩm</th>
                   <th class="p-4">Đơn Vị Tính</th>
-                  <th class="p-4">Đơn Giá</th>
+                  <th class="p-4">Danh Sách Mức Giá</th>
                   <th class="p-4 text-right">Thao Tác</th>
                 </tr>
               </thead>
@@ -128,6 +129,50 @@
                 </tr>
               </thead>
               <tbody id="customer-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SECTION 4: REPORTS & BILL MANAGEMENT -->
+        <div id="section-reports" class="hidden animate-fade-in space-y-4">
+          <!-- Lọc Báo Cáo -->
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end justify-between">
+            <div class="flex flex-wrap items-center gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 mb-1">Từ ngày</label>
+                <input type="date" id="report-start-date" class="px-3 py-1.5 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 mb-1">Đến ngày</label>
+                <input type="date" id="report-end-date" class="px-3 py-1.5 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <button onclick="renderReports()" class="mt-5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition">
+                <i class="ph-bold ph-funnel"></i> Lọc Báo Cáo
+              </button>
+            </div>
+            <div class="bg-indigo-50 border border-indigo-100 px-4 py-2.5 rounded-xl flex items-center gap-3">
+              <i class="ph-bold ph-coins text-2xl text-indigo-600"></i>
+              <div>
+                <span class="text-xs font-medium text-slate-500 block">Tổng Doanh Thu Lọc</span>
+                <span id="report-total-revenue" class="text-lg font-black text-indigo-600">0 ₫</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Danh sách Hóa Đơn -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-slate-100 font-bold text-slate-800">Lịch Sử Hóa Đơn Đã Thanh Toán</div>
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+                <tr>
+                  <th class="p-4">Mã Bill</th>
+                  <th class="p-4">Thời Gian</th>
+                  <th class="p-4">Khách Hàng</th>
+                  <th class="p-4">Tổng Tiền</th>
+                  <th class="p-4 text-right">Thao Tác (Cần PIN)</th>
+                </tr>
+              </thead>
+              <tbody id="report-table-body" class="divide-y divide-slate-100"></tbody>
             </table>
           </div>
         </div>
@@ -168,6 +213,37 @@
     </aside>
   </div>
 
+  <!-- MODAL: CHỌN GIÁ SẢN PHẨM (KHI SẢN PHẨM CÓ NHIỀU GIÁ) -->
+  <div id="price-selector-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-modal">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <h3 id="price-selector-title" class="font-bold text-slate-800">Chọn Giá Sản Phẩm</h3>
+        <button type="button" onclick="togglePriceSelectorModal(false)" class="text-slate-400 hover:text-slate-600"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+      <div id="price-selector-options" class="p-6 space-y-2.5 max-h-80 overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: XÁC THỰC MÃ PIN BẢO MẬT -->
+  <div id="pin-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white w-full max-w-xs rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-modal">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="ph-bold ph-lock-key text-amber-500"></i> Xác Nhận Mã PIN</h3>
+        <button type="button" onclick="togglePinModal(false)" class="text-slate-400 hover:text-slate-600"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+      <form onsubmit="confirmPin(event)" class="p-6 space-y-4">
+        <p class="text-xs text-slate-500 text-center">Nhập mã PIN quản trị để thực hiện chỉnh sửa/xóa bill đã thanh toán.</p>
+        <div>
+          <input type="password" id="pin-input" maxlength="6" required autofocus placeholder="****" class="w-full text-center text-2xl tracking-widest font-mono p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div class="flex justify-end space-x-2">
+          <button type="button" onclick="togglePinModal(false)" class="w-full py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-200">Hủy</button>
+          <button type="submit" class="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm">Xác Nhận</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: SẢN PHẨM -->
   <div id="product-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
     <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-modal">
@@ -175,25 +251,31 @@
         <h3 id="prod-modal-title" class="font-bold text-slate-800">Thêm Sản Phẩm Mới</h3>
         <button type="button" onclick="toggleProductModal(false)" class="text-slate-400 hover:text-slate-600"><i class="ph-bold ph-x text-lg"></i></button>
       </div>
-      <form onsubmit="saveProduct(event)" class="p-6 space-y-4">
+      <form onsubmit="saveProduct(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
         <input type="hidden" id="prod-id">
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Tên sản phẩm *</label>
           <input type="text" id="prod-name" required class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Đơn vị tính</label>
-            <input type="text" id="prod-unit" placeholder="Cái, Chai..." class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Giá bán (VNĐ) *</label>
-            <input type="number" id="prod-price" required min="0" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-          </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Đơn vị tính</label>
+          <input type="text" id="prod-unit" placeholder="Cái, Chai, Kg..." class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
+        
+        <!-- THIẾT LẬP ĐA MỨC GIÁ -->
+        <div>
+          <div class="flex justify-between items-center mb-2">
+            <label class="block text-xs font-semibold text-slate-600">Cấu hình Đa Mức Giá *</label>
+            <button type="button" onclick="addPriceRow()" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
+              <i class="ph-bold ph-plus"></i> Thêm mức giá
+            </button>
+          </div>
+          <div id="price-rows-container" class="space-y-2"></div>
+        </div>
+
         <div class="pt-2 flex justify-end space-x-2">
           <button type="button" onclick="toggleProductModal(false)" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-200">Hủy</button>
-          <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm">Lưu</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm">Lưu Sản Phẩm</button>
         </div>
       </form>
     </div>
@@ -224,7 +306,7 @@
     </div>
   </div>
 
-  <!-- MODAL: CỬA HÀNG -->
+  <!-- MODAL: CỬA HÀNG & CẤU HÌNH PIN -->
   <div id="store-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
     <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-modal">
       <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
@@ -243,6 +325,10 @@
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Địa chỉ</label>
           <input type="text" id="store-address-input" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Mã PIN xác thực sửa/xóa bill (Mặc định: 1234)</label>
+          <input type="password" id="store-pin-input" maxlength="6" required placeholder="1234" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-mono tracking-widest">
         </div>
         <div class="pt-2 flex justify-end space-x-2">
           <button type="button" onclick="toggleStoreSettingsModal(false)" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-200">Hủy</button>
@@ -267,12 +353,12 @@
       <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end space-x-3">
         <button onclick="toggleReceiptModal(false)" class="px-5 py-2.5 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 transition">Đóng</button>
         <button onclick="printReceipt()" class="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md transition flex items-center gap-2">
-          <i class="ph-bold ph-printer text-lg"></i> In Hóa Đơn (Chữ To)
+          <i class="ph-bold ph-printer text-lg"></i> In Hóa Đơn
         </button>
       </div>
     </div>
   </div>
 
-  <script src="./js/app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

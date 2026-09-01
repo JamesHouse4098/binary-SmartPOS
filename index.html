@@ -3,326 +3,270 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#4f46e5">
-  <title>POS System - Smart Store</title>
+  <title>POS System - Quản Lý Bán Hàng</title>
   
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
+  <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-  <script src="js/app.js" defer></script>
-
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    /* Custom Animations & Styles */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes modalScale {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-fade-in { animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-modal { animation: modalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-    @media print {
-      body * { visibility: hidden; }
-      #print-area, #print-area * { visibility: visible; }
-      #print-area {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 80mm;
-        padding: 5px;
-        background: white;
-        color: black;
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 16px;
-        line-height: 1.4;
-        font-weight: 600;
-      }
-      #print-area h1, #print-area h2, #print-area .title {
-        font-size: 22px;
-        font-weight: bold;
-        text-align: center;
-      }
-      #print-area table { width: 100%; font-size: 15px; }
-      #print-area .total { font-size: 18px; font-weight: bold; }
-    }
-
-    @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes slideOut {
-      from { transform: translateX(0); opacity: 1; }
-      to { transform: translateX(100%); opacity: 0; }
-    }
-    .toast-show { animation: slideIn 0.3s ease-out forwards; }
-    .toast-hide { animation: slideOut 0.3s ease-in forwards; }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-800">
+<body class="bg-slate-100 font-sans text-slate-800 antialiased h-screen flex flex-col overflow-hidden">
 
-<div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
-
-<!-- LOGIN SCREEN -->
-<div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50">
-  <div class="bg-white p-8 rounded-2xl shadow-2xl w-96 border border-gray-100">
-    <div class="text-center mb-6">
-      <div class="bg-indigo-100 text-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl mb-2">
-        <i class="fa-solid fa-store"></i>
-      </div>
-      <h2 class="text-2xl font-bold text-gray-800">POS Login</h2>
-      <p class="text-xs text-gray-500 mt-1">Hệ thống quản lý bán hàng</p>
-    </div>
-    <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
-      <div>
-        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Tài khoản</label>
-        <input type="text" id="username" value="admin" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+  <!-- TOP HEADER -->
+  <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0 shadow-sm z-10">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-md shadow-indigo-200">
+        <i class="ph-bold ph-storefront"></i>
       </div>
       <div>
-        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Mật khẩu</label>
-        <input type="password" id="password" value="123456" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        <h1 id="header-store-name" class="font-bold text-slate-800 text-lg leading-tight">Cửa Hàng Của Tôi</h1>
+        <p class="text-xs text-slate-500 flex items-center gap-2">
+          <span id="header-store-phone"><i class="ph ph-phone"></i> ---</span> | 
+          <span id="header-store-address"><i class="ph ph-map-pin"></i> ---</span>
+        </p>
       </div>
-      <p id="login-error" class="text-red-500 text-xs hidden">Tài khoản hoặc mật khẩu không đúng!</p>
-      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition duration-200">Đăng Nhập</button>
-    </form>
-    <div class="mt-4 text-center text-xs text-gray-400">Default: admin / 123456</div>
-  </div>
-</div>
-
-<!-- MAIN APP LAYOUT -->
-<div id="app-screen" class="hidden flex h-screen overflow-hidden">
-  <aside class="w-64 bg-slate-900 text-white flex flex-col">
-    <div class="p-5 text-xl font-bold border-b border-slate-800 flex items-center space-x-3">
-      <i class="fa-solid fa-shop text-indigo-400"></i>
-      <span>Smart POS</span>
     </div>
-    <nav class="flex-1 p-4 space-y-1">
-      <button onclick="switchTab('pos')" id="btn-pos" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium transition">
-        <i class="fa-solid fa-cash-register w-5"></i><span>Bán Hàng (POS)</span>
-      </button>
-      <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white font-medium transition">
-        <i class="fa-solid fa-chart-line w-5"></i><span>Báo Cáo Doanh Số</span>
-      </button>
-      <button onclick="switchTab('products')" id="btn-products" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white font-medium transition">
-        <i class="fa-solid fa-box w-5"></i><span>Quản Lý Sản Phẩm</span>
-      </button>
-      <button onclick="switchTab('customers')" id="btn-customers" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white font-medium transition">
-        <i class="fa-solid fa-users w-5"></i><span>Quản Lý Khách Hàng</span>
-      </button>
-      <button onclick="switchTab('invoices')" id="btn-invoices" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white font-medium transition">
-        <i class="fa-solid fa-file-invoice-dollar w-5"></i><span>Lịch Sử Hóa Đơn</span>
-      </button>
-      <button onclick="switchTab('settings')" id="btn-settings" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white font-medium transition">
-        <i class="fa-solid fa-gear w-5"></i><span>Cài Đặt</span>
-      </button>
-    </nav>
-    <div class="p-4 border-t border-slate-800">
-      <button onclick="handleLogout()" class="w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 font-medium transition">
-        <i class="fa-solid fa-right-from-bracket w-5"></i><span>Đăng Xuất</span>
+
+    <!-- Actions & Settings Button -->
+    <div class="flex items-center space-x-2">
+      <button onclick="toggleStoreSettingsModal(true)" class="flex items-center space-x-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition active:scale-95">
+        <i class="ph-bold ph-gear text-base text-slate-600"></i>
+        <span>Cấu hình Cửa Hàng</span>
       </button>
     </div>
-  </aside>
+  </header>
 
-  <main class="flex-1 bg-gray-50 overflow-y-auto p-6">
-    <section id="tab-pos" class="tab-content active h-full">
-      <div class="grid grid-cols-12 gap-6 h-full">
-        <div class="col-span-7 flex flex-col h-full">
-          <div class="mb-4">
-            <input type="text" id="pos-search" oninput="renderPosProducts()" placeholder="Tìm kiếm sản phẩm theo tên..." class="w-full px-4 py-3 rounded-xl border border-gray-200 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-          </div>
-          <div id="pos-product-grid" class="grid grid-cols-3 gap-4 overflow-y-auto pr-2 flex-1 max-h-[calc(100vh-140px)]"></div>
+  <!-- MAIN APP CONTAINER -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- LEFT PANEL: POS / Product Selection -->
+    <main class="flex-1 flex flex-col min-w-0 bg-slate-50">
+      
+      <!-- Toolbar: Tabs & Search -->
+      <div class="p-4 bg-white border-b border-slate-200 flex flex-wrap gap-3 items-center justify-between shrink-0">
+        <!-- Tabs Nav -->
+        <div class="flex bg-slate-100 p-1 rounded-xl text-sm font-semibold">
+          <button id="tab-pos" onclick="switchTab('pos')" class="px-4 py-2 rounded-lg bg-white shadow-sm text-indigo-600 transition">Bán Hàng (POS)</button>
+          <button id="tab-products" onclick="switchTab('products')" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">Sản Phẩm</button>
+          <button id="tab-customers" onclick="switchTab('customers')" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">Khách Hàng</button>
         </div>
-        <div class="col-span-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-full">
-          <div>
-            <h3 class="text-lg font-bold mb-4 flex items-center justify-between border-b pb-3">
-              <span>Giỏ Hàng</span>
-              <span id="cart-count" class="bg-indigo-100 text-indigo-600 text-xs px-2.5 py-1 rounded-full">0 món</span>
-            </h3>
-            <div class="mb-4">
-              <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Khách Hàng</label>
-              <select id="cart-customer" class="w-full p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                <option value="">Khách Vãng Lai</option>
-              </select>
-            </div>
-            <div id="cart-items" class="space-y-3 max-h-60 overflow-y-auto pr-1">
-              <p class="text-center text-gray-400 py-8">Chưa có sản phẩm nào trong giỏ</p>
-            </div>
+
+        <!-- Search Input -->
+        <div class="relative min-w-[240px]">
+          <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+          <input type="text" id="pos-search" oninput="renderPosProducts()" placeholder="Tìm sản phẩm..." class="w-full pl-9 pr-4 py-2 bg-slate-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition">
+        </div>
+      </div>
+
+      <!-- TAB CONTENT CONTAINER -->
+      <div class="flex-1 overflow-y-auto p-4">
+        
+        <!-- SECTION 1: POS PRODUCTS GRID -->
+        <div id="section-pos" class="animate-fade-in">
+          <div id="pos-product-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+            <!-- Dynamic JS Items -->
           </div>
-          <div class="border-t pt-4 mt-4 space-y-3">
-            <div class="flex justify-between text-base font-bold">
-              <span>Tổng Tiền:</span>
-              <span id="cart-total" class="text-indigo-600 text-xl">0 ₫</span>
-            </div>
-            <button onclick="checkout()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-200 transition">
-              Thanh Toán & Xuất Hóa Đơn
+        </div>
+
+        <!-- SECTION 2: PRODUCTS MANAGEMENT -->
+        <div id="section-products" class="hidden animate-fade-in">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-base font-bold text-slate-800">Danh Sách Sản Phẩm</h2>
+            <button onclick="toggleProductModal(true)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition active:scale-95 flex items-center gap-1.5">
+              <i class="ph-bold ph-plus"></i> Thêm Sản Phẩm
             </button>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="tab-dashboard" class="tab-content">
-      <h2 class="text-2xl font-bold mb-6">Báo Cáo Doanh Số Biểu Đồ</h2>
-      <div class="grid grid-cols-3 gap-6 mb-6">
-        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p class="text-sm font-medium text-gray-500">Doanh Thu Hôm Nay</p>
-          <h3 id="dash-today-sales" class="text-2xl font-bold text-indigo-600 mt-1">0 ₫</h3>
-        </div>
-        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p class="text-sm font-medium text-gray-500">Tổng Hóa Đơn Hôm Nay</p>
-          <h3 id="dash-today-invoices" class="text-2xl font-bold text-emerald-600 mt-1">0</h3>
-        </div>
-        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p class="text-sm font-medium text-gray-500">Tổng Sản Phẩm Đã Bán</p>
-          <h3 id="dash-today-items" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
-        </div>
-      </div>
-      <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <h3 class="text-lg font-bold mb-4">Biểu Đồ Doanh Số Các Ngày Trong Tuần</h3>
-        <div class="h-80"><canvas id="salesChart"></canvas></div>
-      </div>
-    </section>
-
-    <section id="tab-products" class="tab-content">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold">Danh Sách Sản Phẩm</h2>
-        <button onclick="toggleProductModal(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition">+ Thêm Sản Phẩm</button>
-      </div>
-      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <table class="w-full text-left border-collapse">
-          <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
-            <tr>
-              <th class="p-4">Tên Sản Phẩm</th>
-              <th class="p-4">Đơn Vị Tính</th>
-              <th class="p-4">Giá Bán</th>
-              <th class="p-4 text-right">Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody id="product-table-body" class="divide-y divide-gray-100 text-sm"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="tab-customers" class="tab-content">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold">Quản Lý Khách Hàng</h2>
-        <button onclick="toggleCustomerModal(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition">+ Thêm Khách Hàng</button>
-      </div>
-      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <table class="w-full text-left border-collapse">
-          <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
-            <tr>
-              <th class="p-4">Họ & Tên</th>
-              <th class="p-4">Số Điện Thoại</th>
-              <th class="p-4 text-right">Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody id="customer-table-body" class="divide-y divide-gray-100 text-sm"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="tab-invoices" class="tab-content">
-      <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-        <h2 class="text-2xl font-bold">Lịch Sử Hóa Đơn</h2>
-      </div>
-      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <table class="w-full text-left border-collapse">
-          <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
-            <tr>
-              <th class="p-4">Mã Hóa Đơn</th>
-              <th class="p-4">Khách Hàng</th>
-              <th class="p-4 text-right">Tổng Tiền</th>
-            </tr>
-          </thead>
-          <tbody id="invoice-table-body" class="divide-y divide-gray-100 text-sm"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="tab-settings" class="tab-content">
-      <h2 class="text-2xl font-bold mb-6">Cài Đặt & Sao Lưu Dữ Liệu</h2>
-      <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-6">
-        <div class="flex items-center justify-between mb-4 border-b pb-4">
-          <div class="flex items-center space-x-3 text-indigo-600">
-            <i class="fa-brands fa-google-drive text-3xl"></i>
-            <div>
-              <h3 class="text-lg font-bold text-gray-800">Sao Lưu Google Drive</h3>
-              <p class="text-xs text-gray-500">Tự động đẩy bản lưu lên Drive</p>
-            </div>
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+                <tr>
+                  <th class="p-4">Tên Sản Phẩm</th>
+                  <th class="p-4">Đơn Vị Tính</th>
+                  <th class="p-4">Đơn Giá</th>
+                  <th class="p-4 text-right">Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody id="product-table-body" class="divide-y divide-slate-100">
+                <!-- Dynamic JS Rows -->
+              </tbody>
+            </table>
           </div>
         </div>
-        <button id="btn-link-drive" onclick="alert('Tính năng liên kết Google Drive đang phát triển!')" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition">Liên Kết Drive</button>
-      </div>
-    </section>
-  </main>
-</div>
 
-<!-- MODAL THÊM SẢN PHẨM -->
-<div id="product-modal" class="fixed inset-0 bg-black/50 z-[9999] hidden items-center justify-center p-4">
-  <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl relative transform transition-all">
-    <h3 class="text-lg font-bold mb-4">Thêm Sản Phẩm Mới</h3>
-    <form id="form-product" onsubmit="saveProduct(event)" class="space-y-4">
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Tên Sản Phẩm</label>
-        <input type="text" id="prod-name" required class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <!-- SECTION 3: CUSTOMERS MANAGEMENT -->
+        <div id="section-customers" class="hidden animate-fade-in">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-base font-bold text-slate-800">Danh Sách Khách Hàng</h2>
+            <button onclick="toggleCustomerModal(true)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition active:scale-95 flex items-center gap-1.5">
+              <i class="ph-bold ph-plus"></i> Thêm Khách Hàng
+            </button>
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+                <tr>
+                  <th class="p-4">Họ & Tên</th>
+                  <th class="p-4">Số Điện Thoại</th>
+                  <th class="p-4 text-right">Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody id="customer-table-body" class="divide-y divide-slate-100">
+                <!-- Dynamic JS Rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Đơn Vị Tính</label>
-        <input type="text" id="prod-unit" value="Cái" required class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+    </main>
+
+    <!-- RIGHT PANEL: CART & CHECKOUT -->
+    <aside class="w-80 lg:w-96 bg-white border-l border-slate-200 flex flex-col shrink-0 shadow-lg z-10">
+      
+      <!-- Cart Header & Customer Select -->
+      <div class="p-4 border-b border-slate-200 bg-slate-50/50">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+            <i class="ph-bold ph-shopping-cart text-indigo-600"></i> Giỏ Hàng
+          </h3>
+          <span id="cart-count" class="text-xs bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1 rounded-full">0 món</span>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Khách hàng</label>
+          <select id="cart-customer" class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition">
+            <option value="">Khách Vãng Lai</option>
+          </select>
+        </div>
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Giá Bán (₫)</label>
-        <input type="number" id="prod-price" required class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+
+      <!-- Cart Items Scroll Area -->
+      <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-2.5">
+        <p class="text-center text-slate-400 py-12 text-sm">Chưa có sản phẩm trong giỏ</p>
       </div>
-      <div class="flex space-x-2 pt-2">
-        <button type="button" onclick="toggleProductModal(false)" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-lg font-medium transition">Hủy</button>
-        <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-medium transition">Lưu vào Supabase</button>
+
+      <!-- Cart Summary & Checkout -->
+      <div class="p-4 border-t border-slate-200 bg-slate-50/80 space-y-3">
+        <div class="flex justify-between items-center text-slate-600 text-sm">
+          <span>Tổng tiền:</span>
+          <span id="cart-total" class="font-black text-xl text-indigo-600">0 ₫</span>
+        </div>
+        <button onclick="checkout()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-bold rounded-xl shadow-md shadow-indigo-200 transition flex items-center justify-center gap-2">
+          <i class="ph-bold ph-receipt text-lg"></i> Thanh Toán & In Hóa Đơn
+        </button>
       </div>
-    </form>
+
+    </aside>
+
   </div>
-</div>
 
-<!-- MODAL THÊM KHÁCH HÀNG -->
-<div id="customer-modal" class="fixed inset-0 bg-black/50 z-[9999] hidden items-center justify-center p-4">
-  <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl relative transform transition-all">
-    <h3 class="text-lg font-bold mb-4">Thêm Khách Hàng Mới</h3>
-    <form id="form-customer" onsubmit="saveCustomer(event)" class="space-y-4">
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Họ và Tên</label>
-        <input type="text" id="cust-name" required class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+  <!-- MODAL 1: ADD PRODUCT -->
+  <div id="product-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-modal">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800">Thêm Sản Phẩm Mới</h3>
+        <button onclick="toggleProductModal(false)" class="text-slate-400 hover:text-slate-600"><i class="ph-bold ph-x text-lg"></i></button>
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Số Điện Thoại</label>
-        <input type="text" id="cust-phone" required class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      </div>
-      <div class="flex space-x-2 pt-2">
-        <button type="button" onclick="toggleCustomerModal(false)" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-lg font-medium transition">Hủy</button>
-        <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-medium transition">Lưu vào Supabase</button>
-      </div>
-    </form>
+      <form onsubmit="saveProduct(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Tên sản phẩm *</label>
+          <input type="text" id="prod-name" required class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Đơn vị tính</label>
+            <input type="text" id="prod-unit" placeholder="Cái, Chai, Kg..." class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Giá bán (VNĐ) *</label>
+            <input type="number" id="prod-price" required min="0" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="toggleProductModal(false)" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-200">Hủy</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm">Lưu</button>
+        </div>
+      </form>
+    </div>
   </div>
-</div>
 
-<!-- PRINT AREA -->
-<div id="print-area"></div>
+  <!-- MODAL 2: ADD CUSTOMER -->
+  <div id="customer-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-modal">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800">Thêm Khách Hàng Mới</h3>
+        <button onclick="toggleCustomerModal(false)" class="text-slate-400 hover:text-slate-600"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+      <form onsubmit="saveCustomer(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Tên khách hàng *</label>
+          <input type="text" id="cust-name" required class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Số điện thoại</label>
+          <input type="text" id="cust-phone" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="toggleCustomerModal(false)" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-200">Hủy</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-<script>
-  function handleLogin(e) {
-    e.preventDefault();
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('app-screen').classList.remove('hidden');
-    if (typeof initData === 'function') initData();
-  }
+  <!-- MODAL 3: STORE INFO SETTINGS -->
+  <div id="store-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-modal">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800 flex items-center gap-2">
+          <i class="ph-bold ph-gear text-indigo-600"></i> Cấu Hình Cửa Hàng / CTY
+        </h3>
+        <button onclick="toggleStoreSettingsModal(false)" class="text-slate-400 hover:text-slate-600"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+      <form onsubmit="saveStoreSettings(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Tên Cửa hàng / Công ty *</label>
+          <input type="text" id="store-name-input" required class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Số điện thoại</label>
+          <input type="text" id="store-phone-input" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Địa chỉ</label>
+          <input type="text" id="store-address-input" class="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="toggleStoreSettingsModal(false)" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-200">Hủy</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-sm">Lưu Thay Đổi</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-  function handleLogout() {
-    document.getElementById('login-screen').classList.remove('hidden');
-    document.getElementById('app-screen').classList.add('hidden');
-  }
+  <!-- App Main JavaScript File -->
+  <script src="js/app.js"></script>
 
-  function switchTab(tabId) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.getElementById('tab-' + tabId).classList.add('active');
-  }
-</script>
 </body>
 </html>

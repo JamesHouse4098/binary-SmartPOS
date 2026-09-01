@@ -3,67 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <title>In Hóa Đơn</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @page {
-      size: 80mm auto;
-      margin: 0;
-    }
-    body {
-      font-family: 'Courier New', Courier, monospace, sans-serif;
-      width: 80mm;
-      padding: 8px;
-      margin: 0 auto;
-      box-sizing: border-box;
-      font-size: 16px;
-      color: #000;
-      word-break: break-word;
-      white-space: normal;
-    }
-    h2 {
-      font-size: 22px;
-      font-weight: bold;
-      text-align: center;
-      margin: 0 0 5px 0;
-    }
-    .text-center { text-align: center; }
-    .text-right { text-align: right; }
-    .bold { font-weight: bold; }
-    .divider {
-      border-top: 1px dashed #000;
-      margin: 8px 0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 8px 0;
-    }
-    table th, table td {
-      font-size: 15px;
-      padding: 4px 0;
-      vertical-align: top;
-    }
-    .total-price {
-      font-size: 22px;
-      font-weight: bold;
+    body { font-size: 16px; font-family: monospace; color: #000; }
+    .total-price { font-size: 24px !important; font-weight: 900 !important; }
+    @media print {
+      @page { margin: 0; size: auto; }
+      body { margin: 8px; }
     }
   </style>
 </head>
-<body>
-  <div id="receipt-content"></div>
+<body class="p-4 bg-white">
+  <div id="content"></div>
 
   <script>
-    // Lấy dữ liệu hóa đơn từ localStorage do trang chính gửi sang
-    const printData = localStorage.getItem('POS_PRINT_DATA');
-    if (printData) {
-      document.getElementById('receipt-content').innerHTML = printData;
-      // Chờ load xong rồi gọi lệnh in tự động
-      setTimeout(() => {
-        window.print();
-        window.close(); // Đóng trang ngay sau khi ấn in/hủy
-      }, 300);
-    } else {
-      document.getElementById('receipt-content').innerHTML = '<p class="text-center">Không có dữ liệu hóa đơn!</p>';
-    }
+    document.addEventListener("DOMContentLoaded", () => {
+      const data = localStorage.getItem("POS_PRINT_DATA");
+      if (data) {
+        document.getElementById("content").innerHTML = data;
+        setTimeout(() => {
+          window.print();
+          window.close();
+        }, 300);
+      } else {
+        document.getElementById("content").innerHTML = "<p>Không tìm thấy dữ liệu hóa đơn!</p>";
+      }
+    });
   </script>
 </body>
 </html>

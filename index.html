@@ -26,8 +26,12 @@
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-    /* STYLE KHI IN HÓA ĐƠN (CHỮ TO > 15px) */
+    /* STYLE KHI IN HÓA ĐƠN (CHỮ TO > 15px & FIX LỖI RỚT DÒNG TRÀN LỀ) */
     @media print {
+      @page {
+        size: 80mm auto;
+        margin: 0;
+      }
       body * { visibility: hidden; }
       #printable-receipt, #printable-receipt * { visibility: visible; }
       #printable-receipt {
@@ -35,15 +39,24 @@
         left: 0;
         top: 0;
         width: 100%;
-        padding: 20px;
+        max-width: 80mm;
+        padding: 8px;
+        box-sizing: border-box;
         font-size: 16px !important; /* Size > 15px theo yêu cầu */
         color: #000 !important;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
       }
       #printable-receipt h2 { font-size: 24px !important; font-weight: bold; }
       #printable-receipt .receipt-title { font-size: 20px !important; }
       #printable-receipt table th, 
-      #printable-receipt table td { font-size: 16px !important; padding: 8px 4px; }
+      #printable-receipt table td { font-size: 16px !important; padding: 6px 2px; }
       #printable-receipt .total-price { font-size: 22px !important; font-weight: bold; }
+      #printable-receipt div, #printable-receipt p, #printable-receipt span {
+        word-break: break-word;
+        overflow-wrap: break-word;
+      }
     }
   </style>
 </head>

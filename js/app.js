@@ -2,7 +2,7 @@
 // 1. CẤU HÌNH SUPABASE API
 // ==========================================
 const SUPABASE_URL = 'https://relogavxtjjbfciifuel.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInRefiI6InJlbG9nYXZ4dGpqYmZjaWlmdWVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNDI3MDYsImV4cCI6MjEwMzcxODcwNn0.RaRNG00RYPpU4JqixjR0d7vpw0Al8JUwJXslIDfh41Y';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlbG9nYXZ4dGpqYmZjaWlmdWVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNDI3MDYsImV4cCI6MjEwMzcxODcwNn0.RaRNG00RYPpU4JqixjR0d7vpw0Al8JUwJXslIDfh41Y';
 
 if (typeof window.supabaseClient === 'undefined') {
   window.supabaseClient = null;
@@ -39,7 +39,7 @@ const PRICE_CODE_MAP = {
   'retail': 'Giá lẻ'
 };
 
-// Parser thông minh: Tự động bóc tách chuỗi dạng 1default"10000"; 2weekend"11000"
+// Parser thông minh: Tự động bóc tách chuỗi dạng 1default"10000"; 2weekend"11000" từ cột `price`
 function parsePrices(product) {
   if (!product) return [{ label: 'Mặc định', price: 0 }];
 
@@ -49,7 +49,7 @@ function parsePrices(product) {
   }
 
   // 2. Nếu là Chuỗi có dạng mã hóa: 1default"10000"; 2weekend"11000"
-  const rawPriceStr = String(product.Price || product.price || product.prices || '');
+  const rawPriceStr = String(product.price || product.Price || product.prices || '');
   if (rawPriceStr.includes('"')) {
     const regex = /(\d+)?([a-zA-Z0-9_-]+)?"(\d+)"/g;
     let match;
@@ -79,11 +79,11 @@ function parsePrices(product) {
   }
 
   // 4. Fallback: Giá số chuẩn
-  const singleVal = Number(product.Price || product.price) || 0;
+  const singleVal = Number(product.price || product.Price) || 0;
   return [{ label: 'Mặc định', price: singleVal, code: 'default' }];
 }
 
-// Chuyển mảng mức giá ngược lại thành chuỗi mã hóa để lưu Supabase tương thích 2 app
+// Chuyển mảng mức giá ngược lại thành chuỗi mã hóa để lưu Supabase cột `price`
 function stringifyPrices(pricesArray) {
   if (!Array.isArray(pricesArray) || pricesArray.length === 0) return '1default"0"';
   return pricesArray.map((item, index) => {
@@ -243,7 +243,7 @@ function confirmPin(e) {
 }
 
 // ==========================================
-// 6. POS & SẢN PHẨM (ĐỒNG BỘ NGUYÊN BẢN SUPABASE)
+// 6. POS & SẢN PHẨM
 // ==========================================
 function handlePosProductClick(product) {
   if (!product) return;
@@ -442,7 +442,6 @@ async function checkout() {
   orders.unshift(order);
   saveToLocalStorage();
 
-  // Đẩy hóa đơn trực tiếp lên Supabase Server
   if (supabase) {
     try {
       await supabase.from('Orders').insert([{
@@ -537,7 +536,7 @@ function printReceipt() {
 }
 
 // ==========================================
-// 9. QUẢN LÝ SẢN PHẨM & CẶP GIÁ MÃ HÓA
+// 9. QUẢN LÝ SẢN PHẨM (LƯU VÀO CỘT price)
 // ==========================================
 function renderProductsTable() {
   const tbody = document.getElementById('product-table-body');
@@ -615,20 +614,19 @@ async function saveProduct(e) {
   });
 
   const encodedPriceString = stringifyPrices(pricesList);
-  const firstPrice = pricesList.length > 0 ? pricesList[0].price : 0;
 
   if (id) {
     const idx = products.findIndex(p => (p.Id || p.id) == id);
     if (idx !== -1) {
-      products[idx] = { ...products[idx], Name: name, name, Unit: unit, unit, Price: encodedPriceString, price: encodedPriceString, prices: pricesList };
+      products[idx] = { ...products[idx], Name: name, name, Unit: unit, unit, price: encodedPriceString, Price: encodedPriceString, prices: pricesList };
     }
     if (supabase) {
       try {
-        await supabase.from('Products').update({ Name: name, Unit: unit, Price: encodedPriceString }).eq('Id', id);
+        await supabase.from('Products').update({ Name: name, Unit: unit, price: encodedPriceString }).eq('Id', id);
       } catch (err) { console.error(err); }
     }
   } else {
-    const newProduct = { Name: name, Unit: unit, Price: encodedPriceString };
+    const newProduct = { Name: name, Unit: unit, price: encodedPriceString };
     if (supabase) {
       try {
         const { data } = await supabase.from('Products').insert([newProduct]).select();
@@ -815,7 +813,6 @@ async function renderReports() {
   const startDate = startDateEl ? startDateEl.value : '';
   const endDate = endDateEl ? endDateEl.value : '';
 
-  // Ưu tiên tải mới hóa đơn từ Supabase Server trước khi tính toán báo cáo
   if (supabase) {
     await fetchOrdersFromAPI();
   }

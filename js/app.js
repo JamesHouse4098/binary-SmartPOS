@@ -30,7 +30,6 @@ let cart = [];
 let pendingPinCallback = null;
 let currentActiveOrder = null;
 
-// Từ điển việt hóa tên mã giá cho chuẩn GenZ / dễ hiểu
 const PRICE_CODE_MAP = {
   'default': 'Mặc định',
   'weekend': 'Cuối tuần',
@@ -39,17 +38,19 @@ const PRICE_CODE_MAP = {
   'retail': 'Giá lẻ'
 };
 
-// Parser thông minh: Tự động bóc tách chuỗi dạng 1default"10000"; 2weekend"11000" từ cột `price`
+// Parser linh hoạt đọc đúng cột Price (viết hoa P) từ Supabase
 function parsePrices(product) {
   if (!product) return [{ label: 'Mặc định', price: 0 }];
 
-  // 1. Nếu đã là Mảng object
   if (Array.isArray(product.prices) && product.prices.length > 0) {
     return product.prices;
   }
 
-  // 2. Nếu là Chuỗi có dạng mã hóa: 1default"10000"; 2weekend"11000"
-  const rawPriceStr = String(product.price || product.Price || product.prices || '');
+  // Đọc từ Price hoặc price hoặc prices
+  const rawPriceVal = product.Price !== undefined ? product.Price : (product.price !== undefined ? product.price : product.prices);
+  const rawPriceStr = String(rawPriceVal || '');
+
+  // Nếu là Chuỗi có dạng mã hóa: 1default"10000"; 2weekend"11000"
   if (rawPriceStr.includes('"')) {
     const regex = /(\d+)?([a-zA-Z0-9_-]+)?"(\d+)"/g;
     let match;
@@ -70,22 +71,24 @@ function parsePrices(product) {
     if (extracted.length > 0) return extracted;
   }
 
-  // 3. Nếu là JSON Array String
-  if (typeof product.prices === 'string') {
+  // Nếu là JSON String
+  if (typeof rawPriceVal === 'string' && rawPriceVal.startsWith('[')) {
     try {
-      const parsed = JSON.parse(product.prices);
+      const parsed = JSON.parse(rawPriceVal);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     } catch (e) {}
   }
 
-  // 4. Fallback: Giá số chuẩn
-  const singleVal = Number(product.price || product.Price) || 0;
+  // Fallback: Nếu Supabase lưu số thuần (VD: 1500000.00 như trong ảnh)
+  const singleVal = Number(rawPriceVal) || 0;
   return [{ label: 'Mặc định', price: singleVal, code: 'default' }];
 }
 
-// Chuyển mảng mức giá ngược lại thành chuỗi mã hóa để lưu Supabase cột `price`
 function stringifyPrices(pricesArray) {
-  if (!Array.isArray(pricesArray) || pricesArray.length === 0) return '1default"0"';
+  if (!Array.isArray(pricesArray) || pricesArray.length === 0) return '0';
+  if (pricesArray.length === 1 && (pricesArray[0].label === 'Mặc định' || !pricesArray[0].code)) {
+    return String(pricesArray[0].price);
+  }
   return pricesArray.map((item, index) => {
     const code = item.code || (item.label === 'Cuối tuần' ? 'weekend' : 'default');
     return `${index + 1}${code}"${item.price}"`;
@@ -418,7 +421,7 @@ function renderCart() {
 }
 
 // ==========================================
-// 8. THANH TOÁN & ĐỒNG BỘ ĐƠN HÀNG LÊN SERVER
+// 8. THANH TOÁN
 // ==========================================
 async function checkout() {
   if (cart.length === 0) {
@@ -536,7 +539,7 @@ function printReceipt() {
 }
 
 // ==========================================
-// 9. QUẢN LÝ SẢN PHẨM (LƯU VÀO CỘT price)
+// 9. QUẢN LÝ SẢN PHẨM
 // ==========================================
 function renderProductsTable() {
   const tbody = document.getElementById('product-table-body');
@@ -618,15 +621,15 @@ async function saveProduct(e) {
   if (id) {
     const idx = products.findIndex(p => (p.Id || p.id) == id);
     if (idx !== -1) {
-      products[idx] = { ...products[idx], Name: name, name, Unit: unit, unit, price: encodedPriceString, Price: encodedPriceString, prices: pricesList };
+      products[idx] = { ...products[idx], Name: name, name, Unit: unit, unit, Price: encodedPriceString, price: encodedPriceString, prices: pricesList };
     }
     if (supabase) {
       try {
-        await supabase.from('Products').update({ Name: name, Unit: unit, price: encodedPriceString }).eq('Id', id);
+        await supabase.from('Products').update({ Name: name, Unit: unit, Price: encodedPriceString }).eq('Id', id);
       } catch (err) { console.error(err); }
     }
   } else {
-    const newProduct = { Name: name, Unit: unit, price: encodedPriceString };
+    const newProduct = { Name: name, Unit: unit, Price: encodedPriceString };
     if (supabase) {
       try {
         const { data } = await supabase.from('Products').insert([newProduct]).select();
@@ -804,7 +807,7 @@ function toggleCustomerModal(show) {
 }
 
 // ==========================================
-// 11. BÁO CÁO & XÓA BILL TỪ SUPABASE DÙNG PIN
+// 11. BÁO CÁO
 // ==========================================
 async function renderReports() {
   const startDateEl = document.getElementById('report-start-date');

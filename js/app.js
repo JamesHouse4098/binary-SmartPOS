@@ -2,7 +2,7 @@
 // 1. CẤU HÌNH SUPABASE API
 // ==========================================
 const SUPABASE_URL = 'https://relogavxtjjbfciifuel.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlbG9nYXZ4dGpqYmZjaWlmdWVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNDI3MDYsImV4cCI6MjEwMzcxODcwNn0.RaRNG00RYPpU4JqixjR0d7vpw0Al8JUwJXslIDfh41Y';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInRefiI6InJlbG9nYXZ4dGpqYmZjaWlmdWVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNDI3MDYsImV4cCI6MjEwMzcxODcwNn0.RaRNG00RYPpU4JqixjR0d7vpw0Al8JUwJXslIDfh41Y';
 
 if (typeof window.supabaseClient === 'undefined') {
   window.supabaseClient = null;
@@ -30,19 +30,66 @@ let cart = [];
 let pendingPinCallback = null;
 let currentActiveOrder = null;
 
-// Chuẩn hóa dữ liệu tương thích với đa mức giá
-function sanitizePrices(product) {
-  if (product && Array.isArray(product.prices) && product.prices.length > 0) {
+// Từ điển việt hóa tên mã giá cho chuẩn GenZ / dễ hiểu
+const PRICE_CODE_MAP = {
+  'default': 'Mặc định',
+  'weekend': 'Cuối tuần',
+  'vip': 'Khách VIP',
+  'wholesale': 'Giá sỉ',
+  'retail': 'Giá lẻ'
+};
+
+// Parser thông minh: Tự động bóc tách chuỗi dạng 1default"10000"; 2weekend"11000"
+function parsePrices(product) {
+  if (!product) return [{ label: 'Mặc định', price: 0 }];
+
+  // 1. Nếu đã là Mảng object
+  if (Array.isArray(product.prices) && product.prices.length > 0) {
     return product.prices;
   }
-  if (product && typeof product.prices === 'string') {
+
+  // 2. Nếu là Chuỗi có dạng mã hóa: 1default"10000"; 2weekend"11000"
+  const rawPriceStr = String(product.Price || product.price || product.prices || '');
+  if (rawPriceStr.includes('"')) {
+    const regex = /(\d+)?([a-zA-Z0-9_-]+)?"(\d+)"/g;
+    let match;
+    const extracted = [];
+
+    while ((match = regex.exec(rawPriceStr)) !== null) {
+      const code = match[2] ? match[2].toLowerCase() : 'default';
+      const val = Number(match[3]) || 0;
+      const labelName = PRICE_CODE_MAP[code] || (code.charAt(0).toUpperCase() + code.slice(1));
+
+      extracted.push({
+        code: code,
+        label: labelName,
+        price: val
+      });
+    }
+
+    if (extracted.length > 0) return extracted;
+  }
+
+  // 3. Nếu là JSON Array String
+  if (typeof product.prices === 'string') {
     try {
       const parsed = JSON.parse(product.prices);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch(e){}
+    } catch (e) {}
   }
-  const val = Number(product?.Price || product?.price) || 0;
-  return [{ label: 'Giá Chuẩn', price: val }];
+
+  // 4. Fallback: Giá số chuẩn
+  const singleVal = Number(product.Price || product.price) || 0;
+  return [{ label: 'Mặc định', price: singleVal, code: 'default' }];
+}
+
+// Chuyển mảng mức giá ngược lại thành chuỗi mã hóa để lưu Supabase tương thích 2 app
+function stringifyPrices(pricesArray) {
+  if (!Array.isArray(pricesArray) || pricesArray.length === 0) return '1default"0"';
+  return pricesArray.map((item, index) => {
+    const code = item.code || (item.label === 'Cuối tuần' ? 'weekend' : 'default');
+    return `${index + 1}${code}"${item.price}"`;
+  }).join('; ');
 }
 
 const formatMoney = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
@@ -196,11 +243,11 @@ function confirmPin(e) {
 }
 
 // ==========================================
-// 6. POS & SẢN PHẨM
+// 6. POS & SẢN PHẨM (ĐỒNG BỘ NGUYÊN BẢN SUPABASE)
 // ==========================================
 function handlePosProductClick(product) {
   if (!product) return;
-  const validPrices = sanitizePrices(product);
+  const validPrices = parsePrices(product);
 
   if (validPrices.length === 1) {
     addToCart(product, validPrices[0]);
@@ -219,7 +266,7 @@ function renderPosProducts() {
   const filtered = products.filter(p => (p.Name || p.name || '').toLowerCase().includes(query));
 
   filtered.forEach(p => {
-    const prices = sanitizePrices(p);
+    const prices = parsePrices(p);
     const prodName = p.Name || p.name || '---';
     const prodUnit = p.Unit || p.unit || '---';
 
@@ -263,7 +310,7 @@ function openPriceSelectorModal(product) {
   if (!container) return;
   container.innerHTML = '';
 
-  const validPrices = sanitizePrices(product);
+  const validPrices = parsePrices(product);
 
   validPrices.forEach((priceObj) => {
     const btn = document.createElement('button');
@@ -371,7 +418,7 @@ function renderCart() {
 }
 
 // ==========================================
-// 8. THANH TOÁN & HÓA ĐƠN
+// 8. THANH TOÁN & ĐỒNG BỘ ĐƠN HÀNG LÊN SERVER
 // ==========================================
 async function checkout() {
   if (cart.length === 0) {
@@ -395,6 +442,7 @@ async function checkout() {
   orders.unshift(order);
   saveToLocalStorage();
 
+  // Đẩy hóa đơn trực tiếp lên Supabase Server
   if (supabase) {
     try {
       await supabase.from('Orders').insert([{
@@ -406,7 +454,7 @@ async function checkout() {
         total: order.total
       }]);
     } catch (e) {
-      console.error('Lỗi lưu đơn hàng:', e);
+      console.error('Lỗi lưu đơn hàng Supabase:', e);
     }
   }
 
@@ -482,7 +530,6 @@ function printReceipt() {
   if (!currentActiveOrder) return;
   const container = document.getElementById('printable-receipt');
   if (container) {
-    // Đảm bảo tương thích cả hoa lẫn thường cho print.html
     localStorage.setItem('POS_PRINT_DATA', container.innerHTML);
     localStorage.setItem('pos_print_data', container.innerHTML);
     window.open('print.html', '_blank');
@@ -490,7 +537,7 @@ function printReceipt() {
 }
 
 // ==========================================
-// 9. QUẢN LÝ SẢN PHẨM
+// 9. QUẢN LÝ SẢN PHẨM & CẶP GIÁ MÃ HÓA
 // ==========================================
 function renderProductsTable() {
   const tbody = document.getElementById('product-table-body');
@@ -498,7 +545,7 @@ function renderProductsTable() {
   tbody.innerHTML = '';
 
   products.forEach(p => {
-    const prices = sanitizePrices(p);
+    const prices = parsePrices(p);
     const prodId = p.Id || p.id;
     const prodName = p.Name || p.name || '---';
     const prodUnit = p.Unit || p.unit || '---';
@@ -534,7 +581,7 @@ function openProductModal() {
   const container = document.getElementById('price-rows-container');
   if (container) {
     container.innerHTML = '';
-    addPriceRow('Giá Chuẩn', '');
+    addPriceRow('Mặc định', '');
   }
 
   toggleProductModal(true);
@@ -546,7 +593,7 @@ function addPriceRow(label = '', price = '') {
   const div = document.createElement('div');
   div.className = "flex items-center gap-2 price-row";
   div.innerHTML = `
-    <input type="text" placeholder="Tên mức giá" value="${label}" required class="flex-1 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-label-input">
+    <input type="text" placeholder="Tên mức giá (vd: Mặc định, Cuối tuần)" value="${label}" required class="flex-1 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-label-input">
     <input type="number" placeholder="Giá bán" value="${price}" min="0" required class="w-28 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-value-input">
     <button type="button" onclick="this.parentElement.remove()" class="p-2 text-red-500 hover:bg-red-50 rounded-lg"><i class="ph-bold ph-trash"></i></button>
   `;
@@ -562,32 +609,33 @@ async function saveProduct(e) {
   const priceRows = document.querySelectorAll('.price-row');
   const pricesList = [];
   priceRows.forEach(row => {
-    const l = row.querySelector('.price-label-input').value || 'Mức giá';
+    const l = row.querySelector('.price-label-input').value || 'Mặc định';
     const v = Number(row.querySelector('.price-value-input').value) || 0;
     pricesList.push({ label: l, price: v });
   });
 
+  const encodedPriceString = stringifyPrices(pricesList);
   const firstPrice = pricesList.length > 0 ? pricesList[0].price : 0;
 
   if (id) {
     const idx = products.findIndex(p => (p.Id || p.id) == id);
     if (idx !== -1) {
-      products[idx] = { ...products[idx], Name: name, name, Unit: unit, unit, Price: firstPrice, price: firstPrice, prices: pricesList };
+      products[idx] = { ...products[idx], Name: name, name, Unit: unit, unit, Price: encodedPriceString, price: encodedPriceString, prices: pricesList };
     }
     if (supabase) {
       try {
-        await supabase.from('Products').update({ Name: name, Unit: unit, Price: firstPrice, prices: pricesList }).eq('Id', id);
+        await supabase.from('Products').update({ Name: name, Unit: unit, Price: encodedPriceString }).eq('Id', id);
       } catch (err) { console.error(err); }
     }
   } else {
-    const newProduct = { Name: name, Unit: unit, Price: firstPrice, prices: pricesList };
+    const newProduct = { Name: name, Unit: unit, Price: encodedPriceString };
     if (supabase) {
       try {
         const { data } = await supabase.from('Products').insert([newProduct]).select();
         if (data && data[0]) products.push(data[0]);
       } catch (err) { console.error(err); }
     } else {
-      products.push({ Id: Date.now(), ...newProduct });
+      products.push({ Id: Date.now(), ...newProduct, prices: pricesList });
     }
   }
 
@@ -609,7 +657,7 @@ function editProduct(id) {
   const container = document.getElementById('price-rows-container');
   if (container) {
     container.innerHTML = '';
-    const prices = sanitizePrices(p);
+    const prices = parsePrices(p);
     prices.forEach(pr => addPriceRow(pr.label, pr.price));
   }
 
@@ -758,14 +806,19 @@ function toggleCustomerModal(show) {
 }
 
 // ==========================================
-// 11. BÁO CÁO & XÓA BILL VỚI PIN
+// 11. BÁO CÁO & XÓA BILL TỪ SUPABASE DÙNG PIN
 // ==========================================
-function renderReports() {
+async function renderReports() {
   const startDateEl = document.getElementById('report-start-date');
   const endDateEl = document.getElementById('report-end-date');
 
   const startDate = startDateEl ? startDateEl.value : '';
   const endDate = endDateEl ? endDateEl.value : '';
+
+  // Ưu tiên tải mới hóa đơn từ Supabase Server trước khi tính toán báo cáo
+  if (supabase) {
+    await fetchOrdersFromAPI();
+  }
 
   const tbody = document.getElementById('report-table-body');
   if (!tbody) return;
@@ -813,14 +866,18 @@ function viewReportReceipt(orderId) {
 
 function deleteBillWithPin(orderId) {
   requestPin(async () => {
-    if (confirm(`Xác nhận xóa Bill ${orderId}?`)) {
+    if (confirm(`Xác nhận xóa vĩnh viễn Bill ${orderId} trên Server?`)) {
       orders = orders.filter(o => o.id !== orderId);
       if (supabase) {
-        try { await supabase.from('Orders').delete().eq('id', orderId); } catch (e) {}
+        try { 
+          await supabase.from('Orders').delete().eq('id', orderId); 
+        } catch (e) {
+          console.error('Lỗi xóa order Supabase:', e);
+        }
       }
       saveToLocalStorage();
-      renderReports();
-      alert('✅ Đã xóa bill thành công!');
+      await renderReports();
+      alert('✅ Đã xóa bill thành công trên Server!');
     }
   });
 }

@@ -1,68 +1,28 @@
 /**
- * SmartPOS Advanced Client Application
- * Handles State, LocalStorage Persist, Multi-price, Bill Pin Auth & UI Logic
+ * SmartPOS Client Application (Supabase Integrated)
+ * State, DB Sync, Multi-price, Bill Pin Auth, UI Logic & Auto Bill Gen
  */
 
 // ==========================================
-// 1. STATE MANAGEMENT & LOCAL STORAGE SETUP
+// 1. SUPABASE CONFIG & STATE SETUP
 // ==========================================
 
-const STORAGE_KEYS = {
-  STORE_INFO: 'smartpos_store_info',
-  PRODUCTS: 'smartpos_products',
-  CUSTOMERS: 'smartpos_customers',
-  CART: 'smartpos_cart',
-  BILLS: 'smartpos_bills'
-};
+const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Thay URL của ông vào đây
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Thay Key của ông vào đây
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Application State
-let storeInfo = JSON.parse(localStorage.getItem(STORAGE_KEYS.STORE_INFO)) || {
-  name: 'Cửa Hàng Của Tôi',
-  phone: '0901234567',
-  address: '123 Đường ABC, Quận 1, TP.HCM',
-  pin: '1234'
-};
+let storeInfo = { name: 'Cửa Hàng Của Tôi', phone: '0901234567', address: '123 Đường ABC', pin: '1234' };
+let products = [];
+let customers = [];
+let cart = JSON.parse(localStorage.getItem('smartpos_cart')) || [];
+let bills = [];
 
-let products = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRODUCTS)) || [
-  {
-    id: 'prod_1',
-    name: 'Cà Phê Đen',
-    unit: 'Ly',
-    prices: [
-      { label: 'Size S', price: 20000 },
-      { label: 'Size M', price: 25000 },
-      { label: 'Size L', price: 30000 }
-    ]
-  },
-  {
-    id: 'prod_2',
-    name: 'Trà Sữa Thái',
-    unit: 'Ly',
-    prices: [
-      { label: 'Mặc định', price: 35000 }
-    ]
-  }
-];
-
-let customers = JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOMERS)) || [
-  { id: 'cust_1', name: 'Nguyễn Văn A', phone: '0987654321' },
-  { id: 'cust_2', name: 'Trần Thị B', phone: '0912345678' }
-];
-
-let cart = JSON.parse(localStorage.getItem(STORAGE_KEYS.CART)) || [];
-let bills = JSON.parse(localStorage.getItem(STORAGE_KEYS.BILLS)) || [];
-
-// Temporary Pending Action State for PIN verification
 let pendingPinAction = null;
 let currentActiveBill = null;
 
 // ==========================================
 // 2. HELPER UTILITIES
 // ==========================================
-
-function saveData(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -73,10 +33,11 @@ function generateId(prefix = 'id') {
 }
 
 // ==========================================
-// 3. INITIALIZATION & UI ROUTING
+// 3. INITIALIZATION & SUPABASE FETCH
 // ==========================================
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await fetchAllData();
   initStoreHeader();
   renderPosProducts();
   renderProductsTable();
@@ -86,6 +47,32 @@ document.addEventListener('DOMContentLoaded', () => {
   initDateFilters();
   renderReports();
 });
+
+async function fetchAllData() {
+  try {
+    const { data: storeData } = await supabase.from('store_info').select('*').eq('id', 1).single();
+    if (storeData) storeInfo = storeData;
+
+    const { data: prodData } = await supabase.from('products').select('*');
+    if (prodData) products = prodData;
+
+    const { data: custData } = await supabase.from('customers').select('*');
+    if (custData) customers = custData;
+
+    const { data: billData } = await supabase.from('bills').select('*').order('timestamp', { ascending: false });
+    if (billData) {
+      bills = billData.map(b => ({
+        id: b.id,
+        timestamp: b.timestamp,
+        customer: b.customer,
+        items: b.items,
+        totalAmount: parseFloat(b.total_amount)
+      }));
+    }
+  } catch (err) {
+    console.error('Lỗi lấy dữ liệu từ Supabase:', err);
+  }
+}
 
 function initStoreHeader() {
   document.getElementById('header-store-name').innerText = storeInfo.name;
@@ -223,7 +210,7 @@ function addToCart(product, priceObj) {
     });
   }
 
-  saveData(STORAGE_KEYS.CART, cart);
+  localStorage.setItem('smartpos_cart', JSON.stringify(cart));
   renderCart();
 }
 
@@ -236,13 +223,13 @@ function updateCartQuantity(cartItemId, delta) {
     cart.splice(index, 1);
   }
 
-  saveData(STORAGE_KEYS.CART, cart);
+  localStorage.setItem('smartpos_cart', JSON.stringify(cart));
   renderCart();
 }
 
 function clearCart() {
   cart = [];
-  saveData(STORAGE_KEYS.CART, cart);
+  localStorage.setItem('smartpos_cart', JSON.stringify(cart));
   renderCart();
 }
 
@@ -286,10 +273,10 @@ function renderCart() {
 }
 
 // ==========================================
-// 5. CHECKOUT & BILL GENERATION
+// 5. CHECKOUT & RECEIPT MODAL
 // ==========================================
 
-function checkout() {
+async function checkout() {
   if (cart.length === 0) {
     alert('Giỏ hàng chưa có sản phẩm nào!');
     return;
@@ -309,12 +296,22 @@ function checkout() {
     totalAmount: totalAmount
   };
 
-  bills.unshift(bill);
-  saveData(STORAGE_KEYS.BILLS, bills);
+  const { error } = await supabase.from('bills').insert([{
+    id: bill.id,
+    customer: bill.customer,
+    items: bill.items,
+    total_amount: bill.totalAmount
+  }]);
 
+  if (error) {
+    alert('Lỗi lưu hóa đơn!');
+    console.error(error);
+    return;
+  }
+
+  bills.unshift(bill);
   currentActiveBill = bill;
   renderReceiptModal(bill);
-  
   clearCart();
 }
 
@@ -379,7 +376,74 @@ function printReceipt() {
 }
 
 // ==========================================
-// 6. PRODUCT MANAGEMENT
+// 6. AUTO GENERATE BILL (USING CUST & PROD)
+// ==========================================
+
+async function generateRandomBill() {
+  if (!customers || customers.length === 0) {
+    alert('Bro chưa có khách hàng nào trong database!');
+    return;
+  }
+  if (!products || products.length === 0) {
+    alert('Bro chưa có sản phẩm nào!');
+    return;
+  }
+
+  const randomCustomer = customers[Math.floor(Math.random() * customers.length)];
+  const numItems = Math.floor(Math.random() * 3) + 1;
+  const billItems = [];
+  let totalAmount = 0;
+
+  for (let i = 0; i < numItems; i++) {
+    const prod = products[Math.floor(Math.random() * products.length)];
+    const priceObj = prod.prices[Math.floor(Math.random() * prod.prices.length)];
+    const quantity = Math.floor(Math.random() * 3) + 1;
+    
+    const itemTotal = priceObj.price * quantity;
+    totalAmount += itemTotal;
+
+    billItems.push({
+      cartItemId: `${prod.id}_${priceObj.label}`,
+      productId: prod.id,
+      name: prod.name,
+      label: priceObj.label,
+      price: priceObj.price,
+      quantity: quantity
+    });
+  }
+
+  const newBill = {
+    id: 'BILL' + Math.floor(100000 + Math.random() * 900000),
+    timestamp: new Date().toISOString(),
+    customer: {
+      id: randomCustomer.id,
+      name: randomCustomer.name,
+      phone: randomCustomer.phone || '---'
+    },
+    items: billItems,
+    totalAmount: totalAmount
+  };
+
+  const { error } = await supabase.from('bills').insert([{
+    id: newBill.id,
+    customer: newBill.customer,
+    items: newBill.items,
+    total_amount: newBill.totalAmount
+  }]);
+
+  if (error) {
+    console.error('Lỗi tạo bill:', error);
+    alert('Không thể lưu bill lên Supabase!');
+    return;
+  }
+
+  bills.unshift(newBill);
+  renderReports();
+  renderReceiptModal(newBill);
+}
+
+// ==========================================
+// 7. PRODUCT MANAGEMENT
 // ==========================================
 
 function renderProductsTable() {
@@ -439,9 +503,9 @@ function addPriceRow(label = '', price = '') {
   container.appendChild(div);
 }
 
-function saveProduct(e) {
+async function saveProduct(e) {
   e.preventDefault();
-  const id = document.getElementById('prod-id').value;
+  const id = document.getElementById('prod-id').value || generateId('prod');
   const name = document.getElementById('prod-name').value.trim();
   const unit = document.getElementById('prod-unit').value.trim();
 
@@ -461,21 +525,18 @@ function saveProduct(e) {
     return;
   }
 
-  if (id) {
-    const index = products.findIndex(p => p.id === id);
-    if (index > -1) {
-      products[index] = { id, name, unit, prices };
-    }
-  } else {
-    products.push({
-      id: generateId('prod'),
-      name,
-      unit,
-      prices
-    });
+  const newProd = { id, name, unit, prices };
+  const { error } = await supabase.from('products').upsert([newProd]);
+
+  if (error) {
+    alert('Lỗi lưu sản phẩm!');
+    return;
   }
 
-  saveData(STORAGE_KEYS.PRODUCTS, products);
+  const index = products.findIndex(p => p.id === id);
+  if (index > -1) products[index] = newProd;
+  else products.push(newProd);
+
   renderProductsTable();
   renderPosProducts();
   toggleProductModal(false);
@@ -496,17 +557,19 @@ function editProduct(id) {
   openProductModal(true);
 }
 
-function deleteProduct(id) {
+async function deleteProduct(id) {
   if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-    products = products.filter(p => p.id !== id);
-    saveData(STORAGE_KEYS.PRODUCTS, products);
-    renderProductsTable();
-    renderPosProducts();
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (!error) {
+      products = products.filter(p => p.id !== id);
+      renderProductsTable();
+      renderPosProducts();
+    }
   }
 }
 
 // ==========================================
-// 7. CUSTOMER MANAGEMENT
+// 8. CUSTOMER MANAGEMENT
 // ==========================================
 
 function renderCustomersTable() {
@@ -560,20 +623,24 @@ function toggleCustomerModal(show) {
   modal.classList.toggle('flex', show);
 }
 
-function saveCustomer(e) {
+async function saveCustomer(e) {
   e.preventDefault();
-  const id = document.getElementById('cust-id').value;
+  const id = document.getElementById('cust-id').value || generateId('cust');
   const name = document.getElementById('cust-name').value.trim();
   const phone = document.getElementById('cust-phone').value.trim();
 
-  if (id) {
-    const index = customers.findIndex(c => c.id === id);
-    if (index > -1) customers[index] = { id, name, phone };
-  } else {
-    customers.push({ id: generateId('cust'), name, phone });
+  const newCust = { id, name, phone };
+  const { error } = await supabase.from('customers').upsert([newCust]);
+
+  if (error) {
+    alert('Lỗi lưu khách hàng!');
+    return;
   }
 
-  saveData(STORAGE_KEYS.CUSTOMERS, customers);
+  const index = customers.findIndex(c => c.id === id);
+  if (index > -1) customers[index] = newCust;
+  else customers.push(newCust);
+
   renderCustomersTable();
   renderCustomerSelectOptions();
   toggleCustomerModal(false);
@@ -589,17 +656,19 @@ function editCustomer(id) {
   openCustomerModal(true);
 }
 
-function deleteCustomer(id) {
+async function deleteCustomer(id) {
   if (confirm('Xóa khách hàng này?')) {
-    customers = customers.filter(c => c.id !== id);
-    saveData(STORAGE_KEYS.CUSTOMERS, customers);
-    renderCustomersTable();
-    renderCustomerSelectOptions();
+    const { error } = await supabase.from('customers').delete().eq('id', id);
+    if (!error) {
+      customers = customers.filter(c => c.id !== id);
+      renderCustomersTable();
+      renderCustomerSelectOptions();
+    }
   }
 }
 
 // ==========================================
-// 8. STORE SETTINGS & PIN LOGIC
+// 9. STORE SETTINGS & PIN LOGIC
 // ==========================================
 
 function toggleStoreSettingsModal(show) {
@@ -614,16 +683,22 @@ function toggleStoreSettingsModal(show) {
   modal.classList.toggle('flex', show);
 }
 
-function saveStoreSettings(e) {
+async function saveStoreSettings(e) {
   e.preventDefault();
   storeInfo = {
+    id: 1,
     name: document.getElementById('store-name-input').value.trim(),
     phone: document.getElementById('store-phone-input').value.trim(),
     address: document.getElementById('store-address-input').value.trim(),
     pin: document.getElementById('store-pin-input').value.trim() || '1234'
   };
 
-  saveData(STORAGE_KEYS.STORE_INFO, storeInfo);
+  const { error } = await supabase.from('store_info').upsert([storeInfo]);
+  if (error) {
+    alert('Lỗi cập nhật cửa hàng!');
+    return;
+  }
+
   initStoreHeader();
   toggleStoreSettingsModal(false);
 }
@@ -656,7 +731,7 @@ function confirmPin(e) {
 }
 
 // ==========================================
-// 9. REPORTS & BILL MANAGEMENT
+// 10. REPORTS & BILL MANAGEMENT
 // ==========================================
 
 function initDateFilters() {
@@ -715,9 +790,11 @@ function viewBillDetails(billId) {
 }
 
 function deleteBillProtected(billId) {
-  requestPinVerification(() => {
-    bills = bills.filter(b => b.id !== billId);
-    saveData(STORAGE_KEYS.BILLS, bills);
-    renderReports();
+  requestPinVerification(async () => {
+    const { error } = await supabase.from('bills').delete().eq('id', billId);
+    if (!error) {
+      bills = bills.filter(b => b.id !== billId);
+      renderReports();
+    }
   });
 }

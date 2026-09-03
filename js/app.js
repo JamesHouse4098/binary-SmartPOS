@@ -54,6 +54,7 @@ function saveToLocalStorage() {
 document.addEventListener('DOMContentLoaded', async () => {
   renderStoreInfo();
   initDateFilters();
+  setupUIEventListeners();
 
   if (supabase) {
     await fetchProductsFromAPI();
@@ -74,6 +75,16 @@ function initDateFilters() {
   const endDate = document.getElementById('report-end-date');
   if (startDate) startDate.value = today;
   if (endDate) endDate.value = today;
+}
+
+function setupUIEventListeners() {
+  const searchInput = document.getElementById('pos-search');
+  if (searchInput) searchInput.addEventListener('input', renderPosProducts);
+
+  const startDate = document.getElementById('report-start-date');
+  const endDate = document.getElementById('report-end-date');
+  if (startDate) startDate.addEventListener('change', renderReports);
+  if (endDate) endDate.addEventListener('change', renderReports);
 }
 
 // ==========================================

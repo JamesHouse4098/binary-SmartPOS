@@ -30,10 +30,16 @@ let cart = [];
 let pendingPinCallback = null;
 let currentActiveOrder = null;
 
-// Chuẩn hóa dữ liệu tương thích với bảng Supabase (Cột Price)
+// Chuẩn hóa dữ liệu tương thích với đa mức giá
 function sanitizePrices(product) {
   if (product && Array.isArray(product.prices) && product.prices.length > 0) {
     return product.prices;
+  }
+  if (product && typeof product.prices === 'string') {
+    try {
+      const parsed = JSON.parse(product.prices);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch(e){}
   }
   const val = Number(product?.Price || product?.price) || 0;
   return [{ label: 'Giá Chuẩn', price: val }];
@@ -474,12 +480,13 @@ function toggleReceiptModal(show) {
 
 function printReceipt() {
   if (!currentActiveOrder) return;
-  const printData = {
-    store: storeConfig,
-    order: currentActiveOrder
-  };
-  localStorage.setItem('pos_print_data', JSON.stringify(printData));
-  window.open('print.html', '_blank');
+  const container = document.getElementById('printable-receipt');
+  if (container) {
+    // Đảm bảo tương thích cả hoa lẫn thường cho print.html
+    localStorage.setItem('POS_PRINT_DATA', container.innerHTML);
+    localStorage.setItem('pos_print_data', container.innerHTML);
+    window.open('print.html', '_blank');
+  }
 }
 
 // ==========================================
@@ -553,23 +560,27 @@ async function saveProduct(e) {
   const unit = document.getElementById('prod-unit').value;
 
   const priceRows = document.querySelectorAll('.price-row');
-  let firstPrice = 0;
-  if (priceRows.length > 0) {
-    firstPrice = Number(priceRows[0].querySelector('.price-value-input').value) || 0;
-  }
+  const pricesList = [];
+  priceRows.forEach(row => {
+    const l = row.querySelector('.price-label-input').value || 'Mức giá';
+    const v = Number(row.querySelector('.price-value-input').value) || 0;
+    pricesList.push({ label: l, price: v });
+  });
+
+  const firstPrice = pricesList.length > 0 ? pricesList[0].price : 0;
 
   if (id) {
     const idx = products.findIndex(p => (p.Id || p.id) == id);
     if (idx !== -1) {
-      products[idx] = { ...products[idx], Name: name, Unit: unit, Price: firstPrice };
+      products[idx] = { ...products[idx], Name: name, name, Unit: unit, unit, Price: firstPrice, price: firstPrice, prices: pricesList };
     }
     if (supabase) {
       try {
-        await supabase.from('Products').update({ Name: name, Unit: unit, Price: firstPrice }).eq('Id', id);
+        await supabase.from('Products').update({ Name: name, Unit: unit, Price: firstPrice, prices: pricesList }).eq('Id', id);
       } catch (err) { console.error(err); }
     }
   } else {
-    const newProduct = { Name: name, Unit: unit, Price: firstPrice };
+    const newProduct = { Name: name, Unit: unit, Price: firstPrice, prices: pricesList };
     if (supabase) {
       try {
         const { data } = await supabase.from('Products').insert([newProduct]).select();
@@ -688,7 +699,7 @@ async function saveCustomer(e) {
 
   if (id) {
     const idx = customers.findIndex(c => (c.Id || c.id) == id);
-    if (idx !== -1) customers[idx] = { ...customers[idx], Name: name, Phone: phone };
+    if (idx !== -1) customers[idx] = { ...customers[idx], Name: name, name, Phone: phone, phone };
     if (supabase) {
       try { await supabase.from('Customers').update({ Name: name, Phone: phone }).eq('Id', id); } catch (e) {}
     }

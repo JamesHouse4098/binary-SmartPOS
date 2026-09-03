@@ -8,7 +8,7 @@
 // ==========================================
 
 const SUPABASE_URL = 'https://relogavxtjjbfciifuel.supabase.co'; // Thay URL của ông vào đây
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Thay Key của ông vào đây
+const SUPABASE_ANON_KEY = 'sb_publishable_nu8nFG1vwROOz84GsodeTw_SooPRpxJ'; // Thay Key của ông vào đây
 const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 let storeInfo = { name: 'Cửa Hàng Của Tôi', phone: '0901234567', address: '123 Đường ABC', pin: '1234' };

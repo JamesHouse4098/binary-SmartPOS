@@ -50,16 +50,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function fetchAllData() {
   try {
-    const { data: storeData } = await supabase.from('store_info').select('*').eq('id', 1).single();
+    const { data: storeData } = await supabaseClient.from('store_info').select('*').eq('id', 1).single();
     if (storeData) storeInfo = storeData;
 
-    const { data: prodData } = await supabase.from('products').select('*');
+    const { data: prodData } = await supabaseClient.from('products').select('*');
     if (prodData) products = prodData;
 
-    const { data: custData } = await supabase.from('customers').select('*');
+    const { data: custData } = await supabaseClient.from('customers').select('*');
     if (custData) customers = custData;
 
-    const { data: billData } = await supabase.from('bills').select('*').order('timestamp', { ascending: false });
+    const { data: billData } = await supabaseClient.from('bills').select('*').order('timestamp', { ascending: false });
     if (billData) {
       bills = billData.map(b => ({
         id: b.id,
@@ -296,7 +296,7 @@ async function checkout() {
     totalAmount: totalAmount
   };
 
-  const { error } = await supabase.from('bills').insert([{
+  const { error } = await supabaseClient.from('bills').insert([{
     id: bill.id,
     customer: bill.customer,
     items: bill.items,
@@ -424,7 +424,7 @@ async function generateRandomBill() {
     totalAmount: totalAmount
   };
 
-  const { error } = await supabase.from('bills').insert([{
+  const { error } = await supabaseClient.from('bills').insert([{
     id: newBill.id,
     customer: newBill.customer,
     items: newBill.items,
@@ -526,7 +526,7 @@ async function saveProduct(e) {
   }
 
   const newProd = { id, name, unit, prices };
-  const { error } = await supabase.from('products').upsert([newProd]);
+  const { error } = await supabaseClient.from('products').upsert([newProd]);
 
   if (error) {
     alert('Lỗi lưu sản phẩm!');
@@ -559,7 +559,7 @@ function editProduct(id) {
 
 async function deleteProduct(id) {
   if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-    const { error } = await supabase.from('products').delete().eq('id', id);
+    const { error } = await supabaseClient.from('products').delete().eq('id', id);
     if (!error) {
       products = products.filter(p => p.id !== id);
       renderProductsTable();
@@ -630,7 +630,7 @@ async function saveCustomer(e) {
   const phone = document.getElementById('cust-phone').value.trim();
 
   const newCust = { id, name, phone };
-  const { error } = await supabase.from('customers').upsert([newCust]);
+  const { error } = await supabaseClient.from('customers').upsert([newCust]);
 
   if (error) {
     alert('Lỗi lưu khách hàng!');
@@ -658,7 +658,7 @@ function editCustomer(id) {
 
 async function deleteCustomer(id) {
   if (confirm('Xóa khách hàng này?')) {
-    const { error } = await supabase.from('customers').delete().eq('id', id);
+    const { error } = await supabaseClient.from('customers').delete().eq('id', id);
     if (!error) {
       customers = customers.filter(c => c.id !== id);
       renderCustomersTable();
@@ -693,7 +693,7 @@ async function saveStoreSettings(e) {
     pin: document.getElementById('store-pin-input').value.trim() || '1234'
   };
 
-  const { error } = await supabase.from('store_info').upsert([storeInfo]);
+  const { error } = await supabaseClient.from('store_info').upsert([storeInfo]);
   if (error) {
     alert('Lỗi cập nhật cửa hàng!');
     return;
@@ -791,7 +791,7 @@ function viewBillDetails(billId) {
 
 function deleteBillProtected(billId) {
   requestPinVerification(async () => {
-    const { error } = await supabase.from('bills').delete().eq('id', billId);
+    const { error } = await supabaseClient.from('bills').delete().eq('id', billId);
     if (!error) {
       bills = bills.filter(b => b.id !== billId);
       renderReports();

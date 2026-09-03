@@ -7,7 +7,7 @@
 // 1. SUPABASE CONFIG & STATE SETUP
 // ==========================================
 
-const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Thay URL của ông vào đây
+const SUPABASE_URL = 'https://relogavxtjjbfciifuel.supabase.co'; // Thay URL của ông vào đây
 const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Thay Key của ông vào đây
 const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 

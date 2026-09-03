@@ -4,14 +4,17 @@
 const SUPABASE_URL = 'https://relogavxtjjbfciifuel.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlbG9nYXZ4dGpqYmZjaWlmdWVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNDI3MDYsImV4cCI6MjEwMzcxODcwNn0.RaRNG00RYPpU4JqixjR0d7vpw0Al8JUwJXslIDfh41Y';
 
-if (typeof window.supabaseClient === 'undefined') {
-  window.supabaseClient = null;
-  if (typeof createClient !== 'undefined' && SUPABASE_URL !== 'https://your-supabase-project.supabase.co') {
-    window.supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase = null;
+
+function initSupabase() {
+  if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+    supabase = supabaseClient;
+  } else if (typeof createClient !== 'undefined') {
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else if (window.supabase && typeof window.supabase.createClient === 'function') {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 }
-
-var supabase = window.supabaseClient;
 
 // ==========================================
 // 2. STATE MANAGEMENT & LOCAL STORAGE
@@ -38,7 +41,6 @@ const PRICE_CODE_MAP = {
   'retail': 'Giá lẻ'
 };
 
-// Parser linh hoạt đọc đúng cột Price (viết hoa P) từ Supabase
 function parsePrices(product) {
   if (!product) return [{ label: 'Mặc định', price: 0 }];
 
@@ -46,11 +48,9 @@ function parsePrices(product) {
     return product.prices;
   }
 
-  // Đọc từ Price hoặc price hoặc prices
   const rawPriceVal = product.Price !== undefined ? product.Price : (product.price !== undefined ? product.price : product.prices);
   const rawPriceStr = String(rawPriceVal || '');
 
-  // Nếu là Chuỗi có dạng mã hóa: 1default"10000"; 2weekend"11000"
   if (rawPriceStr.includes('"')) {
     const regex = /(\d+)?([a-zA-Z0-9_-]+)?"(\d+)"/g;
     let match;
@@ -61,17 +61,12 @@ function parsePrices(product) {
       const val = Number(match[3]) || 0;
       const labelName = PRICE_CODE_MAP[code] || (code.charAt(0).toUpperCase() + code.slice(1));
 
-      extracted.push({
-        code: code,
-        label: labelName,
-        price: val
-      });
+      extracted.push({ code, label: labelName, price: val });
     }
 
     if (extracted.length > 0) return extracted;
   }
 
-  // Nếu là JSON String
   if (typeof rawPriceVal === 'string' && rawPriceVal.startsWith('[')) {
     try {
       const parsed = JSON.parse(rawPriceVal);
@@ -79,7 +74,6 @@ function parsePrices(product) {
     } catch (e) {}
   }
 
-  // Fallback: Nếu Supabase lưu số thuần (VD: 1500000.00 như trong ảnh)
   const singleVal = Number(rawPriceVal) || 0;
   return [{ label: 'Mặc định', price: singleVal, code: 'default' }];
 }
@@ -105,12 +99,15 @@ function saveToLocalStorage() {
 }
 
 // ==========================================
-// 3. KHI TRANG TẢI XONG
+// 3. KHI TRANG TẢI XONG (KHỞI TẠO CHẮC CHẮN)
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
   renderStoreInfo();
   initDateFilters();
   setupUIEventListeners();
+
+  // Khởi tạo Supabase Client
+  initSupabase();
 
   if (supabase) {
     await fetchProductsFromAPI();
@@ -595,7 +592,7 @@ function addPriceRow(label = '', price = '') {
   const div = document.createElement('div');
   div.className = "flex items-center gap-2 price-row";
   div.innerHTML = `
-    <input type="text" placeholder="Tên mức giá (vd: Mặc định, Cuối tuần)" value="${label}" required class="flex-1 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-label-input">
+    <input type="text" placeholder="Tên mức giá" value="${label}" required class="flex-1 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-label-input">
     <input type="number" placeholder="Giá bán" value="${price}" min="0" required class="w-28 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-value-input">
     <button type="button" onclick="this.parentElement.remove()" class="p-2 text-red-500 hover:bg-red-50 rounded-lg"><i class="ph-bold ph-trash"></i></button>
   `;

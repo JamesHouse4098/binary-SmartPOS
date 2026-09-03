@@ -16,34 +16,27 @@ var supabase = window.supabaseClient;
 // ==========================================
 // 2. STATE MANAGEMENT & LOCAL STORAGE
 // ==========================================
-let products = JSON.parse(localStorage.getItem('pos_products')) || [
-  { id: '1', name: 'Găng VGLOVE - Size M', unit: 'Hộp', prices: [{ label: 'Giá Chuẩn', price: 0 }] },
-  { id: '2', name: 'Bông Viên TT - Bảo Thạch', unit: 'Gói', prices: [{ label: 'Giá Chuẩn', price: 0 }] },
-  { id: '3', name: 'Dây B/Braun', unit: 'Sợi', prices: [{ label: 'Giá Chuẩn', price: 0 }] }
-];
-
-let customers = JSON.parse(localStorage.getItem('pos_customers')) || [
-  { id: '1', name: 'Nguyễn Văn A', phone: '0901234567' }
-];
-
+let products = JSON.parse(localStorage.getItem('pos_products')) || [];
+let customers = JSON.parse(localStorage.getItem('pos_customers')) || [];
 let storeConfig = JSON.parse(localStorage.getItem('pos_store_config')) || {
-  name: 'Cửa Hàng Của Tôi',
-  phone: '0909 123 456',
-  address: '123 Đường ABC, Q. Tân Phú, TP.HCM',
+  name: 'Cửa Hàng Dụng Cụ Y Khoa Phát',
+  phone: '0909997617',
+  address: '55/52 Lê Ngã, P. Tân Phú, TP.HCM',
   pin: '1234'
 };
 
 let orders = JSON.parse(localStorage.getItem('pos_orders')) || [];
 let cart = [];
 let pendingPinCallback = null;
+let currentActiveOrder = null;
 
-// Helper chuẩn hóa prices: Bắt tuyệt đối trường hợp undefined/null/empty
+// Chuẩn hóa dữ liệu tương thích với bảng Supabase (Cột Price)
 function sanitizePrices(product) {
   if (product && Array.isArray(product.prices) && product.prices.length > 0) {
     return product.prices;
   }
-  const fallbackPrice = Number(product?.price) || 0;
-  return [{ label: 'Giá Chuẩn', price: fallbackPrice }];
+  const val = Number(product?.Price || product?.price) || 0;
+  return [{ label: 'Giá Chuẩn', price: val }];
 }
 
 const formatMoney = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
@@ -206,10 +199,12 @@ function renderPosProducts() {
   if (!grid) return;
   grid.innerHTML = '';
 
-  const filtered = products.filter(p => p.name && p.name.toLowerCase().includes(query));
+  const filtered = products.filter(p => (p.Name || p.name || '').toLowerCase().includes(query));
 
   filtered.forEach(p => {
     const prices = sanitizePrices(p);
+    const prodName = p.Name || p.name || '---';
+    const prodUnit = p.Unit || p.unit || '---';
 
     const card = document.createElement('div');
     card.className = "bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between active:scale-95 select-none";
@@ -224,8 +219,8 @@ function renderPosProducts() {
 
     card.innerHTML = `
       <div>
-        <h4 class="font-bold text-slate-800 text-sm leading-snug line-clamp-2">${p.name}</h4>
-        <p class="text-xs text-slate-400 mt-1">ĐVT: ${p.unit || '---'}</p>
+        <h4 class="font-bold text-slate-800 text-sm leading-snug line-clamp-2">${prodName}</h4>
+        <p class="text-xs text-slate-400 mt-1">ĐVT: ${prodUnit}</p>
       </div>
       <div class="mt-3 flex justify-between items-center pointer-events-none">
         ${priceText}
@@ -246,7 +241,8 @@ function renderPosProducts() {
 function openPriceSelectorModal(product) {
   const container = document.getElementById('price-selector-options');
   const title = document.getElementById('price-selector-title');
-  if (title) title.innerText = `Chọn giá - ${product.name}`;
+  const prodName = product.Name || product.name || '';
+  if (title) title.innerText = `Chọn giá - ${prodName}`;
   if (!container) return;
   container.innerHTML = '';
 
@@ -286,7 +282,9 @@ function togglePriceSelectorModal(show) {
 // 7. GIỎ HÀNG (CART)
 // ==========================================
 function addToCart(product, priceObj) {
-  const cartItemKey = `${product.id}_${priceObj.label}_${priceObj.price}`;
+  const prodId = product.Id || product.id;
+  const prodName = product.Name || product.name;
+  const cartItemKey = `${prodId}_${priceObj.label}_${priceObj.price}`;
   const existing = cart.find(item => item.key === cartItemKey);
 
   if (existing) {
@@ -294,8 +292,8 @@ function addToCart(product, priceObj) {
   } else {
     cart.push({
       key: cartItemKey,
-      productId: product.id,
-      name: product.name,
+      productId: prodId,
+      name: prodName,
       label: priceObj.label,
       price: Number(priceObj.price),
       qty: 1
@@ -366,13 +364,13 @@ async function checkout() {
 
   const customerSelect = document.getElementById('cart-customer');
   const customerId = customerSelect ? customerSelect.value : '';
-  const cust = customers.find(c => c.id === customerId);
+  const cust = customers.find(c => (c.Id || c.id) == customerId);
 
   const order = {
     id: 'BILL' + Date.now().toString().slice(-6),
     timestamp: new Date().toISOString(),
-    customerName: cust ? cust.name : 'Khách Vãng Lai',
-    customerPhone: cust ? cust.phone : '',
+    customerName: cust ? (cust.Name || cust.name) : 'Khách Vãng Lai',
+    customerPhone: cust ? (cust.Phone || cust.phone) : '',
     items: [...cart],
     total: cart.reduce((sum, item) => sum + (item.price * item.qty), 0)
   };
@@ -381,9 +379,21 @@ async function checkout() {
   saveToLocalStorage();
 
   if (supabase) {
-    await supabase.from('orders').insert([order]);
+    try {
+      await supabase.from('Orders').insert([{
+        id: order.id,
+        timestamp: order.timestamp,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        items: JSON.stringify(order.items),
+        total: order.total
+      }]);
+    } catch (e) {
+      console.error('Lỗi lưu đơn hàng:', e);
+    }
   }
 
+  currentActiveOrder = order;
   renderReceipt(order);
   toggleReceiptModal(true);
   clearCart();
@@ -452,11 +462,17 @@ function toggleReceiptModal(show) {
 }
 
 function printReceipt() {
-  window.print();
+  if (!currentActiveOrder) return;
+  const printData = {
+    store: storeConfig,
+    order: currentActiveOrder
+  };
+  localStorage.setItem('pos_print_data', JSON.stringify(printData));
+  window.open('print.html', '_blank');
 }
 
 // ==========================================
-// 9. QUẢN LÝ SẢN PHẨM (SAFE FROM UNDEFINED MAP)
+// 9. QUẢN LÝ SẢN PHẨM
 // ==========================================
 function renderProductsTable() {
   const tbody = document.getElementById('product-table-body');
@@ -465,6 +481,9 @@ function renderProductsTable() {
 
   products.forEach(p => {
     const prices = sanitizePrices(p);
+    const prodId = p.Id || p.id;
+    const prodName = p.Name || p.name || '---';
+    const prodUnit = p.Unit || p.unit || '---';
 
     const tr = document.createElement('tr');
     tr.className = "hover:bg-slate-50/50 transition";
@@ -476,12 +495,12 @@ function renderProductsTable() {
     `).join(' ');
 
     tr.innerHTML = `
-      <td class="p-4 font-bold text-slate-800">${p.name || '---'}</td>
-      <td class="p-4 text-slate-500">${p.unit || '---'}</td>
+      <td class="p-4 font-bold text-slate-800">${prodName}</td>
+      <td class="p-4 text-slate-500">${prodUnit}</td>
       <td class="p-4 flex flex-wrap gap-1.5">${priceListBadge}</td>
       <td class="p-4 text-right space-x-2">
-        <button onclick="editProduct('${p.id}')" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs px-2 py-1 bg-indigo-50 rounded-lg">Sửa</button>
-        <button onclick="deleteProduct('${p.id}')" class="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 bg-red-50 rounded-lg">Xóa</button>
+        <button onclick="editProduct('${prodId}')" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs px-2 py-1 bg-indigo-50 rounded-lg">Sửa</button>
+        <button onclick="deleteProduct('${prodId}')" class="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 bg-red-50 rounded-lg">Xóa</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -509,7 +528,7 @@ function addPriceRow(label = '', price = '') {
   const div = document.createElement('div');
   div.className = "flex items-center gap-2 price-row";
   div.innerHTML = `
-    <input type="text" placeholder="Tên mức giá (vd: Giá sỉ, Size L)" value="${label}" required class="flex-1 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-label-input">
+    <input type="text" placeholder="Tên mức giá" value="${label}" required class="flex-1 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-label-input">
     <input type="number" placeholder="Giá bán" value="${price}" min="0" required class="w-28 p-2 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 price-value-input">
     <button type="button" onclick="this.parentElement.remove()" class="p-2 text-red-500 hover:bg-red-50 rounded-lg"><i class="ph-bold ph-trash"></i></button>
   `;
@@ -523,29 +542,31 @@ async function saveProduct(e) {
   const unit = document.getElementById('prod-unit').value;
 
   const priceRows = document.querySelectorAll('.price-row');
-  const prices = [];
-  priceRows.forEach(row => {
-    const label = row.querySelector('.price-label-input').value;
-    const price = Number(row.querySelector('.price-value-input').value);
-    prices.push({ label, price });
-  });
-
-  if (prices.length === 0) {
-    alert('Sản phẩm phải có ít nhất một mức giá!');
-    return;
+  let firstPrice = 0;
+  if (priceRows.length > 0) {
+    firstPrice = Number(priceRows[0].querySelector('.price-value-input').value) || 0;
   }
 
-  const productData = { name, unit, prices };
-
   if (id) {
-    const index = products.findIndex(p => p.id === id);
-    if (index !== -1) products[index] = { id, ...productData };
-    if (supabase) await supabase.from('products').update(productData).eq('id', id);
+    const idx = products.findIndex(p => (p.Id || p.id) == id);
+    if (idx !== -1) {
+      products[idx] = { ...products[idx], Name: name, Unit: unit, Price: firstPrice };
+    }
+    if (supabase) {
+      try {
+        await supabase.from('Products').update({ Name: name, Unit: unit, Price: firstPrice }).eq('Id', id);
+      } catch (err) { console.error(err); }
+    }
   } else {
-    const newId = Date.now().toString();
-    const newProduct = { id: newId, ...productData };
-    products.push(newProduct);
-    if (supabase) await supabase.from('products').insert([newProduct]);
+    const newProduct = { Name: name, Unit: unit, Price: firstPrice };
+    if (supabase) {
+      try {
+        const { data } = await supabase.from('Products').insert([newProduct]).select();
+        if (data && data[0]) products.push(data[0]);
+      } catch (err) { console.error(err); }
+    } else {
+      products.push({ Id: Date.now(), ...newProduct });
+    }
   }
 
   saveToLocalStorage();
@@ -555,12 +576,12 @@ async function saveProduct(e) {
 }
 
 function editProduct(id) {
-  const p = products.find(prod => prod.id === id);
+  const p = products.find(prod => (prod.Id || prod.id) == id);
   if (!p) return;
 
-  document.getElementById('prod-id').value = p.id;
-  document.getElementById('prod-name').value = p.name;
-  document.getElementById('prod-unit').value = p.unit;
+  document.getElementById('prod-id').value = p.Id || p.id;
+  document.getElementById('prod-name').value = p.Name || p.name;
+  document.getElementById('prod-unit').value = p.Unit || p.unit;
   document.getElementById('prod-modal-title').innerText = 'Chỉnh Sửa Sản Phẩm';
 
   const container = document.getElementById('price-rows-container');
@@ -575,8 +596,10 @@ function editProduct(id) {
 
 async function deleteProduct(id) {
   if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-    products = products.filter(p => p.id !== id);
-    if (supabase) await supabase.from('products').delete().eq('id', id);
+    products = products.filter(p => (p.Id || p.id) != id);
+    if (supabase) {
+      try { await supabase.from('Products').delete().eq('Id', id); } catch (e) {}
+    }
     saveToLocalStorage();
     renderProductsTable();
     renderPosProducts();
@@ -605,14 +628,18 @@ function renderCustomersTable() {
   tbody.innerHTML = '';
 
   customers.forEach(c => {
+    const custId = c.Id || c.id;
+    const custName = c.Name || c.name || '---';
+    const custPhone = c.Phone || c.phone || '---';
+
     const tr = document.createElement('tr');
     tr.className = "hover:bg-slate-50/50 transition";
     tr.innerHTML = `
-      <td class="p-4 font-bold text-slate-800">${c.name}</td>
-      <td class="p-4 text-slate-500">${c.phone || '---'}</td>
+      <td class="p-4 font-bold text-slate-800">${custName}</td>
+      <td class="p-4 text-slate-500">${custPhone}</td>
       <td class="p-4 text-right space-x-2">
-        <button onclick="editCustomer('${c.id}')" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs px-2 py-1 bg-indigo-50 rounded-lg">Sửa</button>
-        <button onclick="deleteCustomer('${c.id}')" class="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 bg-red-50 rounded-lg">Xóa</button>
+        <button onclick="editCustomer('${custId}')" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs px-2 py-1 bg-indigo-50 rounded-lg">Sửa</button>
+        <button onclick="deleteCustomer('${custId}')" class="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 bg-red-50 rounded-lg">Xóa</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -624,9 +651,12 @@ function renderCustomerSelect() {
   if (!select) return;
   select.innerHTML = '<option value="">Khách Vãng Lai</option>';
   customers.forEach(c => {
+    const custId = c.Id || c.id;
+    const custName = c.Name || c.name;
+    const custPhone = c.Phone || c.phone;
     const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.innerText = `${c.name} ${c.phone ? '(' + c.phone + ')' : ''}`;
+    opt.value = custId;
+    opt.innerText = `${custName} ${custPhone ? '(' + custPhone + ')' : ''}`;
     select.appendChild(opt);
   });
 }
@@ -645,17 +675,22 @@ async function saveCustomer(e) {
   const name = document.getElementById('cust-name').value;
   const phone = document.getElementById('cust-phone').value;
 
-  const custData = { name, phone };
-
   if (id) {
-    const idx = customers.findIndex(c => c.id === id);
-    if (idx !== -1) customers[idx] = { id, ...custData };
-    if (supabase) await supabase.from('customers').update(custData).eq('id', id);
+    const idx = customers.findIndex(c => (c.Id || c.id) == id);
+    if (idx !== -1) customers[idx] = { ...customers[idx], Name: name, Phone: phone };
+    if (supabase) {
+      try { await supabase.from('Customers').update({ Name: name, Phone: phone }).eq('Id', id); } catch (e) {}
+    }
   } else {
-    const newId = Date.now().toString();
-    const newCust = { id: newId, ...custData };
-    customers.push(newCust);
-    if (supabase) await supabase.from('customers').insert([newCust]);
+    const newCust = { Name: name, Phone: phone };
+    if (supabase) {
+      try {
+        const { data } = await supabase.from('Customers').insert([newCust]).select();
+        if (data && data[0]) customers.push(data[0]);
+      } catch (e) {}
+    } else {
+      customers.push({ Id: Date.now(), ...newCust });
+    }
   }
 
   saveToLocalStorage();
@@ -665,20 +700,22 @@ async function saveCustomer(e) {
 }
 
 function editCustomer(id) {
-  const c = customers.find(cust => cust.id === id);
+  const c = customers.find(cust => (cust.Id || cust.id) == id);
   if (!c) return;
 
-  document.getElementById('cust-id').value = c.id;
-  document.getElementById('cust-name').value = c.name;
-  document.getElementById('cust-phone').value = c.phone;
+  document.getElementById('cust-id').value = c.Id || c.id;
+  document.getElementById('cust-name').value = c.Name || c.name;
+  document.getElementById('cust-phone').value = c.Phone || c.phone;
   document.getElementById('cust-modal-title').innerText = 'Chỉnh Sửa Khách Hàng';
   toggleCustomerModal(true);
 }
 
 async function deleteCustomer(id) {
   if (confirm('Xóa khách hàng này?')) {
-    customers = customers.filter(c => c.id !== id);
-    if (supabase) await supabase.from('customers').delete().eq('id', id);
+    customers = customers.filter(c => (c.Id || c.id) != id);
+    if (supabase) {
+      try { await supabase.from('Customers').delete().eq('Id', id); } catch (e) {}
+    }
     saveToLocalStorage();
     renderCustomersTable();
     renderCustomerSelect();
@@ -714,22 +751,22 @@ function renderReports() {
   let totalRevenue = 0;
 
   const filteredOrders = orders.filter(order => {
-    const orderDate = order.timestamp.split('T')[0];
+    const orderDate = order.timestamp ? order.timestamp.split('T')[0] : '';
     if (startDate && orderDate < startDate) return false;
     if (endDate && orderDate > endDate) return false;
     return true;
   });
 
   filteredOrders.forEach(order => {
-    totalRevenue += order.total;
-    const dateStr = new Date(order.timestamp).toLocaleString('vi-VN');
+    totalRevenue += Number(order.total || 0);
+    const dateStr = order.timestamp ? new Date(order.timestamp).toLocaleString('vi-VN') : '---';
 
     const tr = document.createElement('tr');
     tr.className = "hover:bg-slate-50/50 transition";
     tr.innerHTML = `
       <td class="p-4 font-bold text-indigo-600 font-mono">${order.id}</td>
       <td class="p-4 text-slate-500 text-xs">${dateStr}</td>
-      <td class="p-4 text-slate-800 font-semibold">${order.customerName}</td>
+      <td class="p-4 text-slate-800 font-semibold">${order.customerName || 'Khách Vãng Lai'}</td>
       <td class="p-4 font-bold text-slate-800">${formatMoney(order.total)}</td>
       <td class="p-4 text-right space-x-2">
         <button onclick="viewReportReceipt('${order.id}')" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs px-2.5 py-1 bg-indigo-50 rounded-lg">Xem Bill</button>
@@ -746,6 +783,7 @@ function renderReports() {
 function viewReportReceipt(orderId) {
   const order = orders.find(o => o.id === orderId);
   if (order) {
+    currentActiveOrder = order;
     renderReceipt(order);
     toggleReceiptModal(true);
   }
@@ -753,9 +791,11 @@ function viewReportReceipt(orderId) {
 
 function deleteBillWithPin(orderId) {
   requestPin(async () => {
-    if (confirm(`Xác nhận xóa Bill ${orderId}? Thao tác này sẽ cập nhật lại báo cáo doanh thu.`)) {
+    if (confirm(`Xác nhận xóa Bill ${orderId}?`)) {
       orders = orders.filter(o => o.id !== orderId);
-      if (supabase) await supabase.from('orders').delete().eq('id', orderId);
+      if (supabase) {
+        try { await supabase.from('Orders').delete().eq('id', orderId); } catch (e) {}
+      }
       saveToLocalStorage();
       renderReports();
       alert('✅ Đã xóa bill thành công!');
@@ -767,25 +807,40 @@ function deleteBillWithPin(orderId) {
 // 12. SUPABASE API FETCHING HELPERS
 // ==========================================
 async function fetchProductsFromAPI() {
-  const { data, error } = await supabase.from('products').select('*');
-  if (!error && data && data.length > 0) {
-    products = data;
-    saveToLocalStorage();
+  try {
+    const { data, error } = await supabase.from('Products').select('*');
+    if (!error && data) {
+      products = data;
+      saveToLocalStorage();
+    }
+  } catch (err) {
+    console.error('Lỗi lấy Products từ Supabase:', err);
   }
 }
 
 async function fetchCustomersFromAPI() {
-  const { data, error } = await supabase.from('customers').select('*');
-  if (!error && data && data.length > 0) {
-    customers = data;
-    saveToLocalStorage();
+  try {
+    const { data, error } = await supabase.from('Customers').select('*');
+    if (!error && data) {
+      customers = data;
+      saveToLocalStorage();
+    }
+  } catch (err) {
+    console.error('Lỗi lấy Customers từ Supabase:', err);
   }
 }
 
 async function fetchOrdersFromAPI() {
-  const { data, error } = await supabase.from('orders').select('*').order('timestamp', { ascending: false });
-  if (!error && data && data.length > 0) {
-    orders = data;
-    saveToLocalStorage();
+  try {
+    const { data, error } = await supabase.from('Orders').select('*').order('timestamp', { ascending: false });
+    if (!error && data) {
+      orders = data.map(o => ({
+        ...o,
+        items: typeof o.items === 'string' ? JSON.parse(o.items) : o.items
+      }));
+      saveToLocalStorage();
+    }
+  } catch (err) {
+    console.error('Lỗi lấy Orders từ Supabase:', err);
   }
 }
